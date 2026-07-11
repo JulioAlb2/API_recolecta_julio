@@ -119,7 +119,6 @@ func InitDependencies() {
 			docs.SwaggerInfo.Schemes = []string{"https", "http"}
 		}
 	}
-
 	log.Printf("Swagger host=%q schemes=%v", docs.SwaggerInfo.Host, docs.SwaggerInfo.Schemes)
 	configureSwaggerDocs()
 

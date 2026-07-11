@@ -37,6 +37,7 @@ func CORSMiddleware() gin.HandlerFunc {
 	isProd := env == "production" || env == "prod"
 
 	// Seguridad: nunca abrir CORS a todos en producción.
+	// Si no hay orígenes configurados en dev, AllowAllOrigins (útil sin variable seteada).
 	if len(origins) == 0 {
 		if isProd {
 			log.Println("CORS: ENVIRONMENT=production sin CORS_ORIGINS — se deniegan orígenes cruzados")

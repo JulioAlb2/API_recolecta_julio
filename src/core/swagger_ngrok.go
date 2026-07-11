@@ -19,6 +19,8 @@ var (
 // 1) Reescribe doc.json para que host/schemes coincidan con la URL real
 //    (ngrok/IP) y Swagger deje de generar curl a http://localhost:8080.
 // 2) Inyecta ngrok-skip-browser-warning en el HTML de Swagger UI.
+//    Sin esto, el plan gratis de ngrok intercepta el "Try it out" y
+//    Swagger muestra "Failed to fetch" / CORS.
 //
 // No abre CORS: solo corrige la documentación servida al cliente.
 func InjectNgrokSkipHeaderInSwagger() gin.HandlerFunc {
