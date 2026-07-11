@@ -19,6 +19,7 @@ func NewLoginEmpleadoController(useCase *application.LoginEmpleado) *LoginEmplea
 }
 
 // @Summary      Login de empleado
+// @Security
 // @Tags         Empleado
 // @Accept       json
 // @Produce      json

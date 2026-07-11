@@ -35,12 +35,14 @@ func NewDomicilioController(
 }
 
 // @Summary      Crear domicilio
+// @Description  Registra un domicilio del ciudadano autenticado (JWT). Si se envían coordenadas, `latitud` y `longitud` deben ir juntas (WGS84: lat -90…90, lng -180…180). Si `ciudadano_id` se omite, se usa el ID del token.
 // @Tags         Domicilio
 // @Accept       json
 // @Produce      json
-// @Param        body body entities.CreateDomicilioRequest true "Body"
-// @Success      201 {object} entities.DomicilioResponse
+// @Param        body body entities.CreateDomicilioRequest true "Domicilio con dirección y coordenadas opcionales"
+// @Success      201 {object} entities.DomicilioIDResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Failure      401 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
 // @Security     BearerAuth
 // @Router       /api/domicilios [post]
@@ -63,6 +65,8 @@ func (c *DomicilioController) Create(ctx *gin.Context) {
 		Calle:       body.Calle,
 		Numero:      body.Numero,
 		Referencia:  body.Referencia,
+		Latitud:     body.Latitud,
+		Longitud:    body.Longitud,
 	}
 
 	id, err := c.create.Execute(ctx.Request.Context(), appInput)
@@ -80,9 +84,11 @@ func (c *DomicilioController) Create(ctx *gin.Context) {
 }
 
 // @Summary      Listar domicilios
+// @Description  Devuelve los domicilios del ciudadano autenticado, incluyendo `latitud` y `longitud` cuando fueron guardadas.
 // @Tags         Domicilio
 // @Produce      json
-// @Success      200 {object} entities.DomicilioResponse
+// @Success      200 {object} entities.DomicilioListResponse
+// @Failure      401 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
 // @Security     BearerAuth
 // @Router       /api/domicilios [get]
@@ -104,11 +110,13 @@ func (c *DomicilioController) List(ctx *gin.Context) {
 }
 
 // @Summary      Obtener domicilio por ID
+// @Description  Obtiene un domicilio por ID, con coordenadas GPS si existen.
 // @Tags         Domicilio
 // @Produce      json
 // @Param        id path int true "ID del domicilio"
 // @Success      200 {object} entities.DomicilioResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Failure      401 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
 // @Security     BearerAuth
@@ -140,13 +148,15 @@ func (c *DomicilioController) GetByID(ctx *gin.Context) {
 }
 
 // @Summary      Actualizar domicilio
+// @Description  Actualiza campos del domicilio. Para cambiar la ubicación en mapa, envía `latitud` y `longitud` juntas.
 // @Tags         Domicilio
 // @Accept       json
 // @Produce      json
 // @Param        id path int true "ID del domicilio"
-// @Param        body body entities.CreateDomicilioRequest true "Body"
-// @Success      200 {object} entities.DomicilioResponse
+// @Param        body body entities.UpdateDomicilioRequest true "Campos a actualizar"
+// @Success      200 {object} entities.DomicilioMessageResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Failure      401 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
 // @Security     BearerAuth
 // @Router       /api/domicilios/{id} [put]
@@ -170,6 +180,8 @@ func (c *DomicilioController) Update(ctx *gin.Context) {
 		Calle:      body.Calle,
 		Numero:     body.Numero,
 		Referencia: body.Referencia,
+		Latitud:    body.Latitud,
+		Longitud:   body.Longitud,
 	}
 
 	if err := c.update.Execute(ctx.Request.Context(), appInput); err != nil {
@@ -185,11 +197,13 @@ func (c *DomicilioController) Update(ctx *gin.Context) {
 }
 
 // @Summary      Eliminar domicilio
+// @Description  Elimina un domicilio del ciudadano autenticado (solo el propietario).
 // @Tags         Domicilio
 // @Produce      json
 // @Param        id path int true "ID del domicilio"
-// @Success      200 {object} entities.DomicilioResponse
+// @Success      200 {object} entities.DomicilioMessageResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Failure      401 {object} core.ErrorResponse
 // @Failure      403 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
 // @Security     BearerAuth

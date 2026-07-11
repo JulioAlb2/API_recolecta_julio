@@ -1,11 +1,13 @@
 package main
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	_ "github.com/vicpoo/API_recolecta/docs"
+	"github.com/vicpoo/API_recolecta/docs"
 	alertaApplication "github.com/vicpoo/API_recolecta/src/alerta_usuario/application"
 	alertaHttp "github.com/vicpoo/API_recolecta/src/alerta_usuario/infrastructure/http"
 	alertaPostgres "github.com/vicpoo/API_recolecta/src/alerta_usuario/infrastructure/postgres"
@@ -52,6 +54,7 @@ import (
 	anomalia "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
 	incidencia "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
 	reporteConductor "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
+	recorrido "github.com/vicpoo/API_recolecta/src/recorrido/infrastructure"
 	reporteFallaCritica "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
 	seguimientoFallaCritica "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
 	alertaMantenimiento "github.com/vicpoo/API_recolecta/src/Mantenimiento/infrastructure"
@@ -80,13 +83,29 @@ import (
 // @host            localhost:8080
 // @BasePath        /
 // @schemes         http
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description     Pega el token del login. Puedes usar solo el JWT o con prefijo Bearer (ej: Bearer eyJhbG...)
+// @security BearerAuth
 func InitDependencies() {
 	// En producción las variables vienen inyectadas por Docker; .env es opcional.
 	_ = godotenv.Load()
 
+	docs.SwaggerInfo.Schemes = []string{"https", "http"}
+	if host := os.Getenv("SWAGGER_HOST"); host != "" {
+		docs.SwaggerInfo.Host = host
+	} else if host := os.Getenv("NGROK_DOMAIN"); host != "" {
+		docs.SwaggerInfo.Host = host
+	}
+	configureSwaggerDocs()
+
 	engine := gin.Default()
 	engine.Use(core.CORSMiddleware())
-	engine.GET("/api/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	engine.GET("/api/swagger/*any", ginSwagger.WrapHandler(
+		swaggerFiles.Handler,
+		ginSwagger.PersistAuthorization(true),
+	))
 
 	db := core.GetBD()
 
@@ -536,6 +555,9 @@ func InitDependencies() {
 	tipoMantenimientoRoutes := tipoMantenimiento.NewTipoMantenimientoRouter(engine)
 
 	tipoMantenimientoRoutes.Run()
+
+	recorridoRoutes := recorrido.NewRecorridoRouter(engine)
+	recorridoRoutes.Run()
 
 	engine.Run(":8080")
 }

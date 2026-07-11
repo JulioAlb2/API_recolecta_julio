@@ -262,16 +262,28 @@ definitions:
   entities.CreateDomicilioRequest:
     properties:
       alias:
+        example: Casa
         type: string
       calle:
+        example: Calle Olmo
         type: string
       ciudadano_id:
+        example: 42
         type: integer
       colonia_id:
+        example: 1
         type: integer
+      latitud:
+        example: 16.6278
+        type: number
+      longitud:
+        example: -93.1045
+        type: number
       numero:
+        example: "123"
         type: string
       referencia:
+        example: Frente al parque
         type: string
     required:
     - alias
@@ -458,31 +470,91 @@ definitions:
   entities.Domicilio:
     properties:
       alias:
+        example: Casa
         type: string
       calle:
+        example: Calle Olmo
         type: string
       ciudadano_id:
+        example: 42
         type: integer
       colonia_id:
+        example: 1
         type: integer
       created_at:
+        example: "2026-07-04T16:00:00Z"
         type: string
       id:
+        example: 1
         type: integer
+      latitud:
+        example: 16.6278
+        type: number
+      longitud:
+        example: -93.1045
+        type: number
       numero:
+        example: "123"
         type: string
       referencia:
+        example: Frente al parque
         type: string
+    type: object
+  entities.DomicilioIDResponse:
+    properties:
+      code:
+        example: 201
+        type: integer
+      id:
+        example: 1
+        type: integer
+      message:
+        example: domicilio creado correctamente
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  entities.DomicilioListResponse:
+    properties:
+      code:
+        example: 200
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/entities.Domicilio'
+        type: array
+      message:
+        example: domicilios listados correctamente
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  entities.DomicilioMessageResponse:
+    properties:
+      code:
+        example: 200
+        type: integer
+      message:
+        example: domicilio actualizado correctamente
+        type: string
+      success:
+        example: true
+        type: boolean
     type: object
   entities.DomicilioResponse:
     properties:
       code:
+        example: 200
         type: integer
       data:
         $ref: '#/definitions/entities.Domicilio'
       message:
+        example: domicilio obtenido correctamente
         type: string
       success:
+        example: true
         type: boolean
     type: object
   entities.Empleado:
@@ -1169,6 +1241,30 @@ definitions:
       email:
         type: string
       password:
+        type: string
+    type: object
+  entities.UpdateDomicilioRequest:
+    properties:
+      alias:
+        example: Casa principal
+        type: string
+      calle:
+        example: Calle Olmo
+        type: string
+      colonia_id:
+        example: 1
+        type: integer
+      latitud:
+        example: 16.628
+        type: number
+      longitud:
+        example: -93.1048
+        type: number
+      numero:
+        example: "125"
+        type: string
+      referencia:
+        example: Portón azul
         type: string
     type: object
   entities.UpdateEmpleadoRequest:
@@ -2183,7 +2279,7 @@ paths:
           schema:
             $ref: '#/definitions/core.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Crear colonia
       tags:
       - Colonia
@@ -2219,7 +2315,7 @@ paths:
           schema:
             $ref: '#/definitions/core.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Eliminar colonia
       tags:
       - Colonia
@@ -2294,19 +2390,25 @@ paths:
           schema:
             $ref: '#/definitions/core.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Actualizar colonia
       tags:
       - Colonia
   /api/domicilios:
     get:
+      description: Devuelve los domicilios del ciudadano autenticado, incluyendo `latitud`
+        y `longitud` cuando fueron guardadas.
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/entities.DomicilioResponse'
+            $ref: '#/definitions/entities.DomicilioListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2319,8 +2421,11 @@ paths:
     post:
       consumes:
       - application/json
+      description: 'Registra un domicilio del ciudadano autenticado (JWT). Si se envían
+        coordenadas, `latitud` y `longitud` deben ir juntas (WGS84: lat -90…90, lng
+        -180…180). Si `ciudadano_id` se omite, se usa el ID del token.'
       parameters:
-      - description: Body
+      - description: Domicilio con dirección y coordenadas opcionales
         in: body
         name: body
         required: true
@@ -2332,9 +2437,13 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/entities.DomicilioResponse'
+            $ref: '#/definitions/entities.DomicilioIDResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/core.ErrorResponse'
         "500":
@@ -2348,6 +2457,7 @@ paths:
       - Domicilio
   /api/domicilios/{id}:
     delete:
+      description: Elimina un domicilio del ciudadano autenticado (solo el propietario).
       parameters:
       - description: ID del domicilio
         in: path
@@ -2360,9 +2470,13 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/entities.DomicilioResponse'
+            $ref: '#/definitions/entities.DomicilioMessageResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/core.ErrorResponse'
         "403":
@@ -2379,6 +2493,7 @@ paths:
       tags:
       - Domicilio
     get:
+      description: Obtiene un domicilio por ID, con coordenadas GPS si existen.
       parameters:
       - description: ID del domicilio
         in: path
@@ -2394,6 +2509,10 @@ paths:
             $ref: '#/definitions/entities.DomicilioResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/core.ErrorResponse'
         "404":
@@ -2412,27 +2531,33 @@ paths:
     put:
       consumes:
       - application/json
+      description: Actualiza campos del domicilio. Para cambiar la ubicación en mapa,
+        envía `latitud` y `longitud` juntas.
       parameters:
       - description: ID del domicilio
         in: path
         name: id
         required: true
         type: integer
-      - description: Body
+      - description: Campos a actualizar
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/entities.CreateDomicilioRequest'
+          $ref: '#/definitions/entities.UpdateDomicilioRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/entities.DomicilioResponse'
+            $ref: '#/definitions/entities.DomicilioMessageResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/core.ErrorResponse'
         "500":
@@ -5779,4 +5904,10 @@ paths:
       - TipoMantenimiento
 schemes:
 - http
+securityDefinitions:
+  BearerAuth:
+    description: 'Ingresa el token JWT con el prefijo Bearer. Ejemplo: Bearer eyJhbGciOiJIUzI1NiIs...'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

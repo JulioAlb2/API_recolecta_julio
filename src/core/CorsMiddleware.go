@@ -11,6 +11,9 @@ import (
 
 func CORSMiddleware() gin.HandlerFunc {
 	originsEnv := os.Getenv("CORS_ORIGINS")
+	if originsEnv == "" {
+		originsEnv = os.Getenv("CORS_ALLOWED_ORIGINS")
+	}
 
 	var origins []string
 	for _, origin := range strings.Split(originsEnv, ",") {

@@ -10,19 +10,17 @@ import (
 
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
+		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token requerido"})
 			return
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
+		tokenStr, ok := extractBearerToken(authHeader)
+		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "formato token inválido"})
 			return
 		}
-
-		tokenStr := parts[1]
 
 		token, err := jwt.ParseWithClaims(
 			tokenStr,
@@ -51,4 +49,14 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func extractBearerToken(authHeader string) (string, bool) {
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+		token := strings.TrimSpace(parts[1])
+		return token, token != ""
+	}
+
+	return authHeader, authHeader != ""
 }

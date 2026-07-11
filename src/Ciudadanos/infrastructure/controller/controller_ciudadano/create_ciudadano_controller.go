@@ -18,6 +18,7 @@ func NewCreateCiudadanoController(useCase *application_ciudadano.CreateCiudadano
 }
 
 // @Summary      Crear ciudadano
+// @Security
 // @Tags         Ciudadano
 // @Accept       json
 // @Produce      json

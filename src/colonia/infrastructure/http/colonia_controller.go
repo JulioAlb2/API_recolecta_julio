@@ -54,7 +54,7 @@ func (c *ColoniaController) RegisterRoutes(r *gin.Engine) {
 // @Tags         Colonia
 // @Accept       json
 // @Produce      json
-// @Security     Bearer
+// @Security     BearerAuth
 // @Param        body body domain.CreateColoniaRequest true "Body"
 // @Success      201 {object} domain.ColoniaResponse
 // @Failure      400 {object} core.ErrorResponse "Datos inválidos"
@@ -89,6 +89,7 @@ func (c *ColoniaController) Create(ctx *gin.Context) {
 
 // @Summary      Obtener colonia por ID
 // @Description  Obtiene los detalles de una colonia específica. Endpoint público
+// @Security
 // @Tags         Colonia
 // @Produce      json
 // @Param        id path int true "ID de la colonia"
@@ -120,6 +121,7 @@ func (c *ColoniaController) GetByID(ctx *gin.Context) {
 
 // @Summary      Listar colonias
 // @Description  Obtiene el listado de todas las colonias disponibles. Endpoint público
+// @Security
 // @Tags         Colonia
 // @Produce      json
 // @Success      200 {object} domain.ColoniaResponse
@@ -145,7 +147,7 @@ func (c *ColoniaController) List(ctx *gin.Context) {
 // @Tags         Colonia
 // @Accept       json
 // @Produce      json
-// @Security     Bearer
+// @Security     BearerAuth
 // @Param        id path int true "ID de la colonia"
 // @Param        body body domain.CreateColoniaRequest true "Body"
 // @Success      200 {object} domain.ColoniaResponse
@@ -189,7 +191,7 @@ func (c *ColoniaController) Update(ctx *gin.Context) {
 // @Description  Elimina una colonia de la base de datos. Solo administradores (rol ADMIN)
 // @Tags         Colonia
 // @Produce      json
-// @Security     Bearer
+// @Security     BearerAuth
 // @Param        id path int true "ID de la colonia"
 // @Success      204 "Colonia eliminada correctamente"
 // @Failure      400 {object} core.ErrorResponse "ID inválido"

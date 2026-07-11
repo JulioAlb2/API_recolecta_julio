@@ -6,16 +6,17 @@ import (
 	"strings"
 
 	"github.com/vicpoo/API_recolecta/src/Ciudadanos/domain"
-	
 )
 
 type UpdateDomicilioInput struct {
-	ID         int     `json:"id"`
-	ColoniaID  *int    `json:"colonia_id,omitempty"`
-	Alias      *string `json:"alias,omitempty"`
-	Calle      *string `json:"calle,omitempty"`
-	Numero     *string `json:"numero,omitempty"`
-	Referencia *string `json:"referencia,omitempty"`
+	ID         int      `json:"id"`
+	ColoniaID  *int     `json:"colonia_id,omitempty"`
+	Alias      *string  `json:"alias,omitempty"`
+	Calle      *string  `json:"calle,omitempty"`
+	Numero     *string  `json:"numero,omitempty"`
+	Referencia *string  `json:"referencia,omitempty"`
+	Latitud    *float64 `json:"latitud,omitempty"`
+	Longitud   *float64 `json:"longitud,omitempty"`
 }
 
 type UpdateDomicilio struct {
@@ -79,6 +80,20 @@ func (uc *UpdateDomicilio) Execute(ctx context.Context, in UpdateDomicilioInput)
 		ref := strings.TrimSpace(*in.Referencia)
 		d.Referencia = &ref
 	}
+
+	lat := d.Latitud
+	lng := d.Longitud
+	if in.Latitud != nil {
+		lat = in.Latitud
+	}
+	if in.Longitud != nil {
+		lng = in.Longitud
+	}
+	if err := validateCoordenadas(lat, lng); err != nil {
+		return err
+	}
+	d.Latitud = lat
+	d.Longitud = lng
 
 	return uc.repo.Update(ctx, d)
 }

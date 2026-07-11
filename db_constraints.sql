@@ -83,7 +83,7 @@ BEGIN
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_camion_historial'
     ) THEN
-        ALTER TABLE historial_asignacion ADD CONSTRAINT fk_camion_historial FOREIGN KEY (id_camion) REFERENCES camion(id);
+        ALTER TABLE historial_asignacion ADD CONSTRAINT fk_camion_historial FOREIGN KEY (id_camion) REFERENCES camion(camion_id);
     END IF;
 
     IF NOT EXISTS (
@@ -121,10 +121,20 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (
-        SELECT 1 FROM information_schema.check_constraints
+        SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_tipo_camion'
     ) THEN
-        ALTER TABLE camion ADD CONSTRAINT fk_tipo_camion FOREIGN KEY (tipo_id) REFERENCES tipo_camion(id);
+        ALTER TABLE camion ADD CONSTRAINT fk_tipo_camion FOREIGN KEY (tipo_camion_id) REFERENCES tipo_camion(tipo_camion_id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_estado_camion_camion'
+    ) THEN
+        ALTER TABLE estado_camion ADD CONSTRAINT fk_estado_camion_camion FOREIGN KEY (camion_id) REFERENCES camion(camion_id);
     END IF;
 END $$;
 
@@ -134,7 +144,7 @@ BEGIN
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_camion_afectado'
     ) THEN
-        ALTER TABLE registro_mantenimiento ADD CONSTRAINT fk_camion_afectado FOREIGN KEY (camion_id) REFERENCES camion(id);
+        ALTER TABLE registro_mantenimiento ADD CONSTRAINT fk_camion_afectado FOREIGN KEY (camion_id) REFERENCES camion(camion_id);
     END IF;
 
     IF NOT EXISTS (
@@ -158,7 +168,7 @@ BEGIN
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_camion_asignado_ruta'
     ) THEN
-        ALTER TABLE registro_asignacion_ruta ADD CONSTRAINT fk_camion_asignado_ruta FOREIGN KEY (camion_id) REFERENCES camion(id);
+        ALTER TABLE registro_asignacion_ruta ADD CONSTRAINT fk_camion_asignado_ruta FOREIGN KEY (camion_id) REFERENCES camion(camion_id);
     END IF;
 
     IF NOT EXISTS (
@@ -255,6 +265,52 @@ BEGIN
         WHERE constraint_name = 'chk_alias_domicilio'
     ) THEN
         ALTER TABLE domicilio ADD CONSTRAINT chk_alias_domicilio CHECK (alias <> '');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'domicilio' AND column_name = 'calle'
+    ) THEN
+        ALTER TABLE domicilio ADD COLUMN calle VARCHAR(255);
+        ALTER TABLE domicilio ADD COLUMN numero VARCHAR(50) DEFAULT '';
+        ALTER TABLE domicilio ADD COLUMN referencia VARCHAR(255);
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'domicilio' AND column_name = 'direccion'
+        ) THEN
+            UPDATE domicilio SET calle = direccion WHERE calle IS NULL;
+        END IF;
+        UPDATE domicilio SET calle = '' WHERE calle IS NULL;
+        UPDATE domicilio SET numero = '' WHERE numero IS NULL;
+        ALTER TABLE domicilio ALTER COLUMN calle SET NOT NULL;
+        ALTER TABLE domicilio ALTER COLUMN numero SET NOT NULL;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'domicilio' AND column_name = 'latitud'
+    ) THEN
+        ALTER TABLE domicilio ADD COLUMN latitud DOUBLE PRECISION;
+        ALTER TABLE domicilio ADD COLUMN longitud DOUBLE PRECISION;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'domicilio' AND column_name = 'direccion'
+          AND is_generated = 'NEVER'
+    ) THEN
+        UPDATE domicilio
+        SET calle = COALESCE(NULLIF(TRIM(calle), ''), direccion)
+        WHERE calle IS NULL OR TRIM(calle) = '';
+        ALTER TABLE domicilio DROP COLUMN direccion;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'domicilio' AND column_name = 'direccion'
+    ) THEN
+        ALTER TABLE domicilio ADD COLUMN direccion VARCHAR(255)
+            GENERATED ALWAYS AS (TRIM(BOTH FROM calle || ' ' || COALESCE(numero, ''))) STORED;
     END IF;
 
 END $$;

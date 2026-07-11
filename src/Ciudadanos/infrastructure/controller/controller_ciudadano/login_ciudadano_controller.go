@@ -18,6 +18,7 @@ func NewLoginCiudadanoController(useCase *application_ciudadano.LoginCiudadano) 
 }
 
 // @Summary      Login de ciudadano
+// @Security
 // @Tags         Ciudadano
 // @Accept       json
 // @Produce      json

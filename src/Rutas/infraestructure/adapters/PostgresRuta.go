@@ -25,9 +25,9 @@ func NewPostgresRuta() ports.IRuta {
 func (pg *PostgresRuta) Save(ruta *entities.Ruta) error {
 	ruta.CreatedAt = time.Now()
 	sql := `
-		INSERT INTO ruta (nombre, descripcion, json_ruta, eliminado, created_at)
-		VALUES ($1, $2, $3, false, $4)
-		RETURNING ruta_id
+		INSERT INTO ruta (nombre, descripcion, colonia_id, json_ruta, created_at)
+		VALUES ($1, $2, 1, $3, $4)
+		RETURNING id
 	`
 
 	err := pg.conn.QueryRow(
@@ -35,7 +35,7 @@ func (pg *PostgresRuta) Save(ruta *entities.Ruta) error {
 		sql,
 		ruta.Nombre,
 		ruta.Descripcion,
-		ruta.JsonRuta, // Ya es string, se guarda directamente
+		ruta.JsonRuta,
 		ruta.CreatedAt,
 	).Scan(&ruta.RutaID)
 
@@ -45,11 +45,32 @@ func (pg *PostgresRuta) Save(ruta *entities.Ruta) error {
 	return nil
 }
 
+func (pg *PostgresRuta) scanRuta(row pgx.Row) (*entities.Ruta, error) {
+	var r entities.Ruta
+	var deletedAt *time.Time
+
+	err := row.Scan(
+		&r.RutaID,
+		&r.Nombre,
+		&r.Descripcion,
+		&r.JsonRuta,
+		&deletedAt,
+		&r.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Eliminado = deletedAt != nil
+	return &r, nil
+}
+
 func (pg *PostgresRuta) ListAll() ([]entities.Ruta, error) {
 	sql := `
-		SELECT ruta_id, nombre, descripcion, json_ruta, eliminado, created_at
+		SELECT id, nombre, descripcion, json_ruta::text, deleted_at, created_at
 		FROM ruta
-		ORDER BY ruta_id DESC
+		WHERE deleted_at IS NULL
+		ORDER BY id DESC
 	`
 
 	rows, err := pg.conn.Query(context.Background(), sql)
@@ -60,21 +81,11 @@ func (pg *PostgresRuta) ListAll() ([]entities.Ruta, error) {
 
 	var rutas []entities.Ruta
 	for rows.Next() {
-		var r entities.Ruta
-
-		err := rows.Scan(
-			&r.RutaID,
-			&r.Nombre,
-			&r.Descripcion,
-			&r.JsonRuta, // Se lee directamente como string
-			&r.Eliminado,
-			&r.CreatedAt,
-		)
+		r, err := pg.scanRuta(rows)
 		if err != nil {
 			return nil, fmt.Errorf("error al escanear ruta: %w", err)
 		}
-
-		rutas = append(rutas, r)
+		rutas = append(rutas, *r)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -86,22 +97,12 @@ func (pg *PostgresRuta) ListAll() ([]entities.Ruta, error) {
 
 func (pg *PostgresRuta) GetById(id int32) (*entities.Ruta, error) {
 	sql := `
-		SELECT ruta_id, nombre, descripcion, json_ruta, eliminado, created_at
+		SELECT id, nombre, descripcion, json_ruta::text, deleted_at, created_at
 		FROM ruta
-		WHERE ruta_id = $1
+		WHERE id = $1
 	`
 
-	var r entities.Ruta
-
-	err := pg.conn.QueryRow(context.Background(), sql, id).Scan(
-		&r.RutaID,
-		&r.Nombre,
-		&r.Descripcion,
-		&r.JsonRuta, // Se lee directamente como string
-		&r.Eliminado,
-		&r.CreatedAt,
-	)
-
+	r, err := pg.scanRuta(pg.conn.QueryRow(context.Background(), sql, id))
 	if err == pgx.ErrNoRows {
 		return nil, errors.New("ruta no encontrada")
 	}
@@ -109,14 +110,14 @@ func (pg *PostgresRuta) GetById(id int32) (*entities.Ruta, error) {
 		return nil, fmt.Errorf("error al obtener ruta: %w", err)
 	}
 
-	return &r, nil
+	return r, nil
 }
 
 func (pg *PostgresRuta) Update(ruta *entities.Ruta) error {
 	sql := `
 		UPDATE ruta
-		SET nombre = $1, descripcion = $2, json_ruta = $3
-		WHERE ruta_id = $4 AND eliminado = false
+		SET nombre = $1, descripcion = $2, json_ruta = $3, updated_at = NOW()
+		WHERE id = $4 AND deleted_at IS NULL
 	`
 
 	cmd, err := pg.conn.Exec(
@@ -124,7 +125,7 @@ func (pg *PostgresRuta) Update(ruta *entities.Ruta) error {
 		sql,
 		ruta.Nombre,
 		ruta.Descripcion,
-		ruta.JsonRuta, // Ya es string, se guarda directamente
+		ruta.JsonRuta,
 		ruta.RutaID,
 	)
 	if err != nil {
@@ -141,8 +142,8 @@ func (pg *PostgresRuta) Update(ruta *entities.Ruta) error {
 func (pg *PostgresRuta) Delete(id int32) error {
 	sql := `
 		UPDATE ruta
-		SET eliminado = true
-		WHERE ruta_id = $1 AND eliminado = false
+		SET deleted_at = NOW(), updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
 	`
 
 	cmd, err := pg.conn.Exec(context.Background(), sql, id)
@@ -159,10 +160,10 @@ func (pg *PostgresRuta) Delete(id int32) error {
 
 func (pg *PostgresRuta) GetActivas() ([]entities.Ruta, error) {
 	sql := `
-		SELECT ruta_id, nombre, descripcion, json_ruta, eliminado, created_at
+		SELECT id, nombre, descripcion, json_ruta::text, deleted_at, created_at
 		FROM ruta
-		WHERE eliminado = false
-		ORDER BY ruta_id DESC
+		WHERE deleted_at IS NULL
+		ORDER BY id DESC
 	`
 
 	rows, err := pg.conn.Query(context.Background(), sql)
@@ -173,21 +174,11 @@ func (pg *PostgresRuta) GetActivas() ([]entities.Ruta, error) {
 
 	var rutas []entities.Ruta
 	for rows.Next() {
-		var r entities.Ruta
-
-		err := rows.Scan(
-			&r.RutaID,
-			&r.Nombre,
-			&r.Descripcion,
-			&r.JsonRuta, // Se lee directamente como string
-			&r.Eliminado,
-			&r.CreatedAt,
-		)
+		r, err := pg.scanRuta(rows)
 		if err != nil {
 			return nil, fmt.Errorf("error al escanear ruta: %w", err)
 		}
-
-		rutas = append(rutas, r)
+		rutas = append(rutas, *r)
 	}
 
 	if err := rows.Err(); err != nil {

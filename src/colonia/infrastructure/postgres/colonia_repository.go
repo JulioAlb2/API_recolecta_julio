@@ -39,9 +39,9 @@ func (r *PostgresColoniaRepository) Create(c *domain.Colonia) error {
 
 func (r *PostgresColoniaRepository) GetByID(id int) (*domain.Colonia, error) {
 	query := `
-		SELECT colonia_id, nombre, zona, created_at
+		SELECT id, nombre, zona, created_at
 		FROM colonia
-		WHERE colonia_id = $1
+		WHERE id = $1
 	`
 
 	row := r.db.QueryRow(context.Background(), query, id)
@@ -63,7 +63,7 @@ func (r *PostgresColoniaRepository) GetByID(id int) (*domain.Colonia, error) {
 
 func (r *PostgresColoniaRepository) GetAll() ([]domain.Colonia, error) {
 	query := `
-		SELECT colonia_id, nombre, zona, created_at
+		SELECT id, nombre, zona, created_at
 		FROM colonia
 	`
 
@@ -97,7 +97,7 @@ func (r *PostgresColoniaRepository) Update(c *domain.Colonia) error {
 		UPDATE colonia
 		SET nombre = $1,
 		    zona = $2
-		WHERE colonia_id = $3
+		WHERE id = $3
 	`
 
 	_, err := r.db.Exec(
@@ -112,11 +112,7 @@ func (r *PostgresColoniaRepository) Update(c *domain.Colonia) error {
 }
 
 func (r *PostgresColoniaRepository) Delete(id int) error {
-	query := `
-		UPDATE colonia
-		SET eliminado = true
-		WHERE colonia_id = $1
-	`
+	query := `DELETE FROM colonia WHERE id = $1`
 
 	_, err := r.db.Exec(context.Background(), query, id)
 	return err

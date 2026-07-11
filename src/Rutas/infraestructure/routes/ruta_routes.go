@@ -44,9 +44,9 @@ func (r *RutaRoutes) Run() {
 	{
 		routes.POST("/", r.createController.Run)
 		routes.GET("/", r.getAllController.Run)
+		routes.GET("/activas", r.getActivas.Run)
 		routes.GET("/:id", r.getByIdController.Run)
 		routes.PUT("/:id", r.updateController.Run)
 		routes.DELETE("/:id", r.deleteController.Run)
-		routes.GET("/activas", r.getActivas.Run)
 	}
 }

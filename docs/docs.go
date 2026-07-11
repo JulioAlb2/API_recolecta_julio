@@ -1301,7 +1301,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Crea una nueva colonia. Solo administradores (rol ADMIN)",
@@ -1409,7 +1409,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Actualiza los datos de una colonia existente. Solo administradores (rol ADMIN)",
@@ -1477,7 +1477,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Elimina una colonia de la base de datos. Solo administradores (rol ADMIN)",
@@ -1535,6 +1535,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Devuelve los domicilios del ciudadano autenticado, incluyendo ` + "`" + `latitud` + "`" + ` y ` + "`" + `longitud` + "`" + ` cuando fueron guardadas.",
                 "produces": [
                     "application/json"
                 ],
@@ -1546,7 +1547,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/entities.DomicilioResponse"
+                            "$ref": "#/definitions/entities.DomicilioListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrorResponse"
                         }
                     },
                     "500": {
@@ -1563,6 +1570,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Registra un domicilio del ciudadano autenticado (JWT). Si se envían coordenadas, ` + "`" + `latitud` + "`" + ` y ` + "`" + `longitud` + "`" + ` deben ir juntas (WGS84: lat -90…90, lng -180…180). Si ` + "`" + `ciudadano_id` + "`" + ` se omite, se usa el ID del token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1575,7 +1583,7 @@ const docTemplate = `{
                 "summary": "Crear domicilio",
                 "parameters": [
                     {
-                        "description": "Body",
+                        "description": "Domicilio con dirección y coordenadas opcionales",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -1588,11 +1596,17 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/entities.DomicilioResponse"
+                            "$ref": "#/definitions/entities.DomicilioIDResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/core.ErrorResponse"
                         }
@@ -1613,6 +1627,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Obtiene un domicilio por ID, con coordenadas GPS si existen.",
                 "produces": [
                     "application/json"
                 ],
@@ -1642,6 +1657,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/core.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1662,6 +1683,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Actualiza campos del domicilio. Para cambiar la ubicación en mapa, envía ` + "`" + `latitud` + "`" + ` y ` + "`" + `longitud` + "`" + ` juntas.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1681,12 +1703,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Body",
+                        "description": "Campos a actualizar",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/entities.CreateDomicilioRequest"
+                            "$ref": "#/definitions/entities.UpdateDomicilioRequest"
                         }
                     }
                 ],
@@ -1694,11 +1716,17 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/entities.DomicilioResponse"
+                            "$ref": "#/definitions/entities.DomicilioMessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/core.ErrorResponse"
                         }
@@ -1717,6 +1745,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Elimina un domicilio del ciudadano autenticado (solo el propietario).",
                 "produces": [
                     "application/json"
                 ],
@@ -1737,11 +1766,17 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/entities.DomicilioResponse"
+                            "$ref": "#/definitions/entities.DomicilioMessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/core.ErrorResponse"
                         }
@@ -7313,22 +7348,36 @@ const docTemplate = `{
             ],
             "properties": {
                 "alias": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Casa"
                 },
                 "calle": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Calle Olmo"
                 },
                 "ciudadano_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 42
                 },
                 "colonia_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
+                },
+                "latitud": {
+                    "type": "number",
+                    "example": 16.6278
+                },
+                "longitud": {
+                    "type": "number",
+                    "example": -93.1045
                 },
                 "numero": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "123"
                 },
                 "referencia": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Frente al parque"
                 }
             }
         },
@@ -7601,28 +7650,105 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "alias": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Casa"
                 },
                 "calle": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Calle Olmo"
                 },
                 "ciudadano_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 42
                 },
                 "colonia_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-07-04T16:00:00Z"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
+                },
+                "latitud": {
+                    "type": "number",
+                    "example": 16.6278
+                },
+                "longitud": {
+                    "type": "number",
+                    "example": -93.1045
                 },
                 "numero": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "123"
                 },
                 "referencia": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Frente al parque"
+                }
+            }
+        },
+        "entities.DomicilioIDResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 201
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "message": {
+                    "type": "string",
+                    "example": "domicilio creado correctamente"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "entities.DomicilioListResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/entities.Domicilio"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "domicilios listados correctamente"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "entities.DomicilioMessageResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "message": {
+                    "type": "string",
+                    "example": "domicilio actualizado correctamente"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },
@@ -7630,16 +7756,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 200
                 },
                 "data": {
                     "$ref": "#/definitions/entities.Domicilio"
                 },
                 "message": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "domicilio obtenido correctamente"
                 },
                 "success": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },
@@ -8697,6 +8826,39 @@ const docTemplate = `{
                 }
             }
         },
+        "entities.UpdateDomicilioRequest": {
+            "type": "object",
+            "properties": {
+                "alias": {
+                    "type": "string",
+                    "example": "Casa principal"
+                },
+                "calle": {
+                    "type": "string",
+                    "example": "Calle Olmo"
+                },
+                "colonia_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "latitud": {
+                    "type": "number",
+                    "example": 16.628
+                },
+                "longitud": {
+                    "type": "number",
+                    "example": -93.1048
+                },
+                "numero": {
+                    "type": "string",
+                    "example": "125"
+                },
+                "referencia": {
+                    "type": "string",
+                    "example": "Portón azul"
+                }
+            }
+        },
         "entities.UpdateEmpleadoRequest": {
             "type": "object",
             "properties": {
@@ -8913,6 +9075,14 @@ const docTemplate = `{
                     "type": "integer"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Ingresa el token JWT con el prefijo Bearer. Ejemplo: Bearer eyJhbGciOiJIUzI1NiIs...",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
