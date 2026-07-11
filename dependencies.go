@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -92,16 +94,38 @@ func InitDependencies() {
 	// En producción las variables vienen inyectadas por Docker; .env es opcional.
 	_ = godotenv.Load()
 
-	docs.SwaggerInfo.Schemes = []string{"https", "http"}
-	if host := os.Getenv("SWAGGER_HOST"); host != "" {
-		docs.SwaggerInfo.Host = host
-	} else if host := os.Getenv("NGROK_DOMAIN"); host != "" {
-		docs.SwaggerInfo.Host = host
+	// Host absoluto para Swagger "Try it out" (sin abrir cualquier origen).
+	// Prioridad: SWAGGER_HOST → NGROK_DOMAIN. Nunca dejar localhost en despliegue.
+	docs.SwaggerInfo.Host = ""
+	docs.SwaggerInfo.Schemes = []string{"https"}
+
+	rawHost := strings.TrimSpace(os.Getenv("SWAGGER_HOST"))
+	if rawHost == "" {
+		rawHost = strings.TrimSpace(os.Getenv("NGROK_DOMAIN"))
 	}
+	rawHost = strings.TrimPrefix(strings.TrimPrefix(rawHost, "https://"), "http://")
+	rawHost = strings.TrimSpace(rawHost)
+
+	if rawHost == "" || strings.EqualFold(rawHost, "auto") {
+		log.Println("Swagger: SWAGGER_HOST/NGROK_DOMAIN vacío — UI usará el origen del navegador")
+		docs.SwaggerInfo.Host = ""
+		docs.SwaggerInfo.Schemes = []string{}
+	} else {
+		docs.SwaggerInfo.Host = rawHost
+		// ngrok y producción van por HTTPS; http solo como respaldo local.
+		if strings.Contains(rawHost, "ngrok") || strings.ToLower(os.Getenv("ENVIRONMENT")) == "production" {
+			docs.SwaggerInfo.Schemes = []string{"https"}
+		} else {
+			docs.SwaggerInfo.Schemes = []string{"https", "http"}
+		}
+	}
+
+	log.Printf("Swagger host=%q schemes=%v", docs.SwaggerInfo.Host, docs.SwaggerInfo.Schemes)
 	configureSwaggerDocs()
 
 	engine := gin.Default()
 	engine.Use(core.CORSMiddleware())
+	engine.Use(core.InjectNgrokSkipHeaderInSwagger())
 	engine.GET("/api/swagger/*any", ginSwagger.WrapHandler(
 		swaggerFiles.Handler,
 		ginSwagger.PersistAuthorization(true),
