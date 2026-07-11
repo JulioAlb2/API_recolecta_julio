@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -92,16 +94,24 @@ func InitDependencies() {
 	// En producción las variables vienen inyectadas por Docker; .env es opcional.
 	_ = godotenv.Load()
 
+	// Host que usa Swagger UI en "Try it out" (sin https://).
+	// Si queda en localhost:8080, el navegador llama a tu máquina local y falla.
 	docs.SwaggerInfo.Schemes = []string{"https", "http"}
-	if host := os.Getenv("SWAGGER_HOST"); host != "" {
+	if host := strings.TrimSpace(os.Getenv("SWAGGER_HOST")); host != "" {
+		host = strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://")
 		docs.SwaggerInfo.Host = host
-	} else if host := os.Getenv("NGROK_DOMAIN"); host != "" {
+		docs.SwaggerInfo.Schemes = []string{"https", "http"}
+	} else if host := strings.TrimSpace(os.Getenv("NGROK_DOMAIN")); host != "" {
+		host = strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://")
 		docs.SwaggerInfo.Host = host
+		docs.SwaggerInfo.Schemes = []string{"https", "http"}
 	}
+	log.Printf("Swagger host=%q schemes=%v", docs.SwaggerInfo.Host, docs.SwaggerInfo.Schemes)
 	configureSwaggerDocs()
 
 	engine := gin.Default()
 	engine.Use(core.CORSMiddleware())
+	engine.Use(core.InjectNgrokSkipHeaderInSwagger())
 	engine.GET("/api/swagger/*any", ginSwagger.WrapHandler(
 		swaggerFiles.Handler,
 		ginSwagger.PersistAuthorization(true),

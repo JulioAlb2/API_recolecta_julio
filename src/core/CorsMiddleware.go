@@ -24,11 +24,19 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 
 	// Si no hay orígenes configurados, permitir todos (útil en dev/staging sin variable seteada).
+	allowHeaders := []string{
+		"Origin",
+		"Content-Type",
+		"Accept",
+		"Authorization",
+		"ngrok-skip-browser-warning",
+	}
+
 	if len(origins) == 0 {
 		return cors.New(cors.Config{
 			AllowAllOrigins: true,
 			AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-			AllowHeaders:    []string{"Origin", "Content-Type", "Accept", "Authorization"},
+			AllowHeaders:    allowHeaders,
 			MaxAge:          12 * time.Hour,
 		})
 	}
@@ -36,7 +44,7 @@ func CORSMiddleware() gin.HandlerFunc {
 	return cors.New(cors.Config{
 		AllowOrigins:     origins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowHeaders:     allowHeaders,
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	})
