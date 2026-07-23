@@ -3,16 +3,20 @@ package entities
 
 // swagger:model CreatePuntoRecoleccionRequest
 type CreatePuntoRecoleccionRequest struct {
-	PuntoID int32 `json:"punto_id"`
-	RutaID int32 `json:"ruta_id"`
-	CP string `json:"cp"`
+	PuntoID int32   `json:"punto_id"`
+	RutaID  int32   `json:"ruta_id"`
+	CP      string  `json:"cp"`
+	Lat     float64 `json:"lat"`
+	Lon     float64 `json:"lon"`
 }
 
 // swagger:model UpdatePuntoRecoleccionRequest
 type UpdatePuntoRecoleccionRequest struct {
-	PuntoID int32 `json:"punto_id"`
-	RutaID int32 `json:"ruta_id"`
-	CP string `json:"cp"`
+	PuntoID int32   `json:"punto_id"`
+	RutaID  int32   `json:"ruta_id"`
+	CP      string  `json:"cp"`
+	Lat     float64 `json:"lat"`
+	Lon     float64 `json:"lon"`
 }
 
 // swagger:model PuntoRecoleccionResponse

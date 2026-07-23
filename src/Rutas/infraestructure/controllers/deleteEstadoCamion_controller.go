@@ -29,6 +29,7 @@ func NewDeleteEstadoCamionController(
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/estado-camion/{id} [delete]
 func (ctr *DeleteEstadoCamionController) Run(ctx *gin.Context) {
 	idParam := ctx.Param("id")

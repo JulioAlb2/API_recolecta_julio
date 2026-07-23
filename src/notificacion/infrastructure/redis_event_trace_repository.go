@@ -29,11 +29,14 @@ func (r *RedisEventTraceRepository) SaveTrace(ctx context.Context, trace *domain
 		return err
 	}
 	key := fmt.Sprintf("event:trace:%s", trace.EventID)
-	if err := r.rdb.Set(ctx, key, data, 0).Err(); err != nil {
+	if err := r.rdb.Set(ctx, key, data, 30*24*time.Hour).Err(); err != nil {
 		return err
 	}
 	truckKey := fmt.Sprintf("truck:events:%d", trace.TruckID)
-	return r.rdb.LPush(ctx, truckKey, trace.EventID).Err()
+	if err := r.rdb.LPush(ctx, truckKey, trace.EventID).Err(); err != nil {
+		return err
+	}
+	return r.rdb.Expire(ctx, truckKey, 30*24*time.Hour).Err()
 }
 
 func (r *RedisEventTraceRepository) GetByEventID(ctx context.Context, eventID string) (*domain.EventTraceRecord, error) {

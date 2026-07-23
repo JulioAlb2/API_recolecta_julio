@@ -21,6 +21,7 @@ func NewCountNotificacionesByTipoController(useCase *application.CountNotificaci
 // @Produce      json
 // @Success      200 {object} entities.NotificacionListResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/notificaciones/count/tipo/{tipo} [get]
 func (ctrl *CountNotificacionesByTipoController) Run(c *gin.Context) {
 	tipo := c.Param("tipo")

@@ -183,15 +183,15 @@ func (r *DomicilioPostgresRepository) DeleteByCiudadano(ctx context.Context, id 
 	return nil
 }
 
-func (r *DomicilioPostgresRepository) FindByAlias(ctx context.Context, alias string) (*entities.Domicilio, error) {
+func (r *DomicilioPostgresRepository) FindByAlias(ctx context.Context, alias string, ciudadanoID int) (*entities.Domicilio, error) {
 	const q = `
 		SELECT id, ciudadano_id, colonia_id, alias, calle, numero, referencia, created_at
 		FROM domicilio
-		WHERE alias = $1
+		WHERE alias = $1 AND ciudadano_id = $2
 	`
 
 	var d entities.Domicilio
-	err := r.db.QueryRow(ctx, q, alias).Scan(
+	err := r.db.QueryRow(ctx, q, alias, ciudadanoID).Scan(
 		&d.ID,
 		&d.CiudadanoID,
 		&d.ColoniaID,

@@ -23,6 +23,7 @@ func NewGetAllCamionController(uc *application.ListCamionUseCase) *GetAllCamionC
 // @Produce      json
 // @Success      200 {object} entities.EstadoCamionListResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/camion/ [get]
 func (ctr *GetAllCamionController) Run(ctx *gin.Context) {
 	camiones, err := ctr.uc.Run()

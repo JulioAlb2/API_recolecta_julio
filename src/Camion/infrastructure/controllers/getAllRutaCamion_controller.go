@@ -22,6 +22,7 @@ func NewGetAllRutaCamionController(
 // @Produce      json
 // @Success      200 {object} entities.HistorialAsignacionCamionListResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/ruta-camion/ [get]
 func (c *GetAllRutaCamionController) Run(ctx *gin.Context) {
 	result, err := c.uc.Execute()

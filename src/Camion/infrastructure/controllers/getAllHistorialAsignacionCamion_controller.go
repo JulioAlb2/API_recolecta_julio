@@ -20,6 +20,7 @@ func NewGetAllHistorialAsignacionCamionController(uc *application.ListAllHistori
 // @Produce      json
 // @Success      200 {object} entities.HistorialAsignacionCamionListResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/historial-asignacion/ [get]
 func (ctr *GetAllHistorialAsignacionCamionController) Run(ctx *gin.Context) {
 	data, err := ctr.uc.Run()

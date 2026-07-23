@@ -19,6 +19,7 @@ type CiudadanoDependencies struct {
 	UpdateCiudadanoController *controller_ciudadano.UpdateCiudadanoController
 	DeleteCiudadanoController *controller_ciudadano.DeleteCiudadanoController
 	LoginCiudadanoController  *controller_ciudadano.LoginCiudadanoController
+	UpdateFCMTokenController  *controller_ciudadano.UpdateFCMTokenController
 }
 
 func InitCiudadanoDependencies(db *pgxpool.Pool) *CiudadanoDependencies {
@@ -30,6 +31,7 @@ func InitCiudadanoDependencies(db *pgxpool.Pool) *CiudadanoDependencies {
 	updateUseCase := application_ciudadano.NewUpdateCiudadano(ciudadanoRepo)
 	deleteUseCase := application_ciudadano.NewDeleteCiudadano(ciudadanoRepo)
 	loginUseCase := application_ciudadano.NewLoginCiudadano(ciudadanoRepo)
+	updateFCMUseCase := application_ciudadano.NewUpdateFCMToken()
 
 	createController := controller_ciudadano.NewCreateCiudadanoController(createUseCase)
 	getController := controller_ciudadano.NewGetCiudadanoController(getUseCase)
@@ -37,6 +39,7 @@ func InitCiudadanoDependencies(db *pgxpool.Pool) *CiudadanoDependencies {
 	updateController := controller_ciudadano.NewUpdateCiudadanoController(updateUseCase)
 	deleteController := controller_ciudadano.NewDeleteCiudadanoController(deleteUseCase)
 	loginController := controller_ciudadano.NewLoginCiudadanoController(loginUseCase)
+	updateFCMController := controller_ciudadano.NewUpdateFCMTokenController(updateFCMUseCase)
 
 	return &CiudadanoDependencies{
 		CreateCiudadanoController: createController,
@@ -45,6 +48,7 @@ func InitCiudadanoDependencies(db *pgxpool.Pool) *CiudadanoDependencies {
 		UpdateCiudadanoController: updateController,
 		DeleteCiudadanoController: deleteController,
 		LoginCiudadanoController:  loginController,
+		UpdateFCMTokenController:  updateFCMController,
 	}
 }
 

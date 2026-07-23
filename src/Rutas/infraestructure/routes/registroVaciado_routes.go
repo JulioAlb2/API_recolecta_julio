@@ -44,7 +44,7 @@ func NewRegistroVaciadoRoutes(
 
 func (r *RegistroVaciadoRoutes) Run() {
 	group := r.engine.Group("/api/registro-vaciado")
-	group.Use(core.JWTAuthMiddleware(), core.RequireRole(core.CONDUCTOR, core.SUPERVISOR, core.COORDINADOR))
+	group.Use(core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN, core.CONDUCTOR, core.SUPERVISOR, core.COORDINADOR))
 	{
 		group.POST("/", r.createController.Run)
 		group.GET("/", r.getAllController.Run)

@@ -11,10 +11,10 @@ import (
 )
 
 type GetAnomaliasByChoferIDController struct {
-	getByChoferIDUseCase *application.GetAnomaliasByChoferIDUseCase
+	getByChoferIDUseCase *application.GetAnomaliasByConductorIDUseCase
 }
 
-func NewGetAnomaliasByChoferIDController(getByChoferIDUseCase *application.GetAnomaliasByChoferIDUseCase) *GetAnomaliasByChoferIDController {
+func NewGetAnomaliasByChoferIDController(getByChoferIDUseCase *application.GetAnomaliasByConductorIDUseCase) *GetAnomaliasByChoferIDController {
 	return &GetAnomaliasByChoferIDController{
 		getByChoferIDUseCase: getByChoferIDUseCase,
 	}
@@ -25,6 +25,7 @@ func NewGetAnomaliasByChoferIDController(getByChoferIDUseCase *application.GetAn
 // @Produce      json
 // @Success      200 {object} entities.AnomaliaResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/anomalias/chofer/{choferId} [get]
 func (ctrl *GetAnomaliasByChoferIDController) Run(c *gin.Context) {
 	choferIDParam := c.Param("choferId")

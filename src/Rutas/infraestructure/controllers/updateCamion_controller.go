@@ -24,9 +24,10 @@ func NewUpdateCamionController(uc *application.UpdateCamionUseCase) *UpdateCamio
 // @Accept       json
 // @Produce      json
 // @Param        id path int true "ID camión"
-// @Param        body body entities.UpdateEstadoCamionRequest true "Body"
-// @Success      200 {object} entities.EstadoCamionResponse
+// @Param        body body entities.UpdateCamionRequest true "Body"
+// @Success      200 {object} entities.CamionResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/camion/{id} [put]
 func (ctr *UpdateCamionController) Run(ctx *gin.Context) {
 	idParam := ctx.Param("id")

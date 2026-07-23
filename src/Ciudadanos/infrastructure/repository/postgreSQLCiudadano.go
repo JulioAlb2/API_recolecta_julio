@@ -36,7 +36,7 @@ func (r *CiudadanoPostgresRepository) Create(ctx context.Context, c *entities.Ci
 
 func (r *CiudadanoPostgresRepository) GetByID(ctx context.Context, id int) (*entities.Ciudadano, error) {
 	const q = `
-		SELECT id, email, alias, password, created_at
+		SELECT id, tenant_id, email, alias, password, created_at
 		FROM ciudadano
 		WHERE id = $1
 	`
@@ -44,6 +44,7 @@ func (r *CiudadanoPostgresRepository) GetByID(ctx context.Context, id int) (*ent
 	var c entities.Ciudadano
 	err := r.db.QueryRow(ctx, q, id).Scan(
 		&c.ID,
+		&c.TenantID,
 		&c.Email,
 		&c.Alias,
 		&c.Password,
@@ -58,7 +59,7 @@ func (r *CiudadanoPostgresRepository) GetByID(ctx context.Context, id int) (*ent
 
 func (r *CiudadanoPostgresRepository) List(ctx context.Context) ([]entities.Ciudadano, error) {
 	const q = `
-		SELECT id, email, alias, password, created_at
+		SELECT id, tenant_id, email, alias, password, created_at
 		FROM ciudadano
 		ORDER BY id DESC
 	`
@@ -75,6 +76,7 @@ func (r *CiudadanoPostgresRepository) List(ctx context.Context) ([]entities.Ciud
 		var c entities.Ciudadano
 		if err := rows.Scan(
 			&c.ID,
+			&c.TenantID,
 			&c.Email,
 			&c.Alias,
 			&c.Password,
@@ -126,7 +128,7 @@ func (r *CiudadanoPostgresRepository) Delete(ctx context.Context, id int) error 
 
 func (r *CiudadanoPostgresRepository) FindByEmail(ctx context.Context, email string) (*entities.Ciudadano, error) {
 	const q = `
-		SELECT id, email, alias, password, created_at
+		SELECT id, tenant_id, email, alias, password, created_at
 		FROM ciudadano
 		WHERE email = $1
 	`
@@ -134,6 +136,7 @@ func (r *CiudadanoPostgresRepository) FindByEmail(ctx context.Context, email str
 	var c entities.Ciudadano
 	err := r.db.QueryRow(ctx, q, email).Scan(
 		&c.ID,
+		&c.TenantID,
 		&c.Email,
 		&c.Alias,
 		&c.Password,
@@ -151,7 +154,7 @@ func (r *CiudadanoPostgresRepository) FindByEmail(ctx context.Context, email str
 
 func (r *CiudadanoPostgresRepository) FindByAlias(ctx context.Context, alias string) (*entities.Ciudadano, error) {
 	const q = `
-		SELECT id, email, alias, password, created_at
+		SELECT id, tenant_id, email, alias, password, created_at
 		FROM ciudadano
 		WHERE alias = $1
 	`
@@ -159,6 +162,7 @@ func (r *CiudadanoPostgresRepository) FindByAlias(ctx context.Context, alias str
 	var c entities.Ciudadano
 	err := r.db.QueryRow(ctx, q, alias).Scan(
 		&c.ID,
+		&c.TenantID,
 		&c.Email,
 		&c.Alias,
 		&c.Password,
@@ -176,7 +180,7 @@ func (r *CiudadanoPostgresRepository) FindByAlias(ctx context.Context, alias str
 
 func (r *CiudadanoPostgresRepository) FindByEmailOrAlias(ctx context.Context, value string) (*entities.Ciudadano, error) {
 	const q = `
-		SELECT id, email, alias, password, created_at
+		SELECT id, tenant_id, email, alias, password, created_at
 		FROM ciudadano
 		WHERE email = $1 OR alias = $1
 	`
@@ -184,6 +188,7 @@ func (r *CiudadanoPostgresRepository) FindByEmailOrAlias(ctx context.Context, va
 	var c entities.Ciudadano
 	err := r.db.QueryRow(ctx, q, value).Scan(
 		&c.ID,
+		&c.TenantID,
 		&c.Email,
 		&c.Alias,
 		&c.Password,

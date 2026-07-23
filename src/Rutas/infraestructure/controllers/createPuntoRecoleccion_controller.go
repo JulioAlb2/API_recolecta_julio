@@ -22,6 +22,7 @@ func NewCreatePuntoRecoleccionController(uc *application.SavePuntoRecoleccionUse
 // @Param        body body entities.CreatePuntoRecoleccionRequest true "Body"
 // @Success      201 {object} entities.PuntoRecoleccionResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/puntos-recoleccion/ [post]
 func (c *CreatePuntoRecoleccionController) Run(ctx *gin.Context) {
 	var p entities.PuntoRecoleccion

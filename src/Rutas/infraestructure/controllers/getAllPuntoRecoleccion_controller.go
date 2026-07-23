@@ -19,6 +19,7 @@ func NewGetAllPuntoRecoleccionController(uc *application.ListAllPuntoRecoleccion
 // @Produce      json
 // @Success      200 {object} entities.PuntoRecoleccionListResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/puntos-recoleccion/ [get]
 func (c *GetAllPuntoRecoleccionController) Run(ctx *gin.Context) {
 	result, err := c.uc.Execute()

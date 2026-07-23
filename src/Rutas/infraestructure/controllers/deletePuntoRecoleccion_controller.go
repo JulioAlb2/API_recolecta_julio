@@ -25,6 +25,7 @@ func NewDeletePuntoRecoleccionController(uc *application.DeletePuntoRecoleccionU
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/puntos-recoleccion/{id} [delete]
 func (c *DeletePuntoRecoleccionController) Run(ctx *gin.Context) {
 	idStr := ctx.Param("id")

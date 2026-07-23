@@ -16,13 +16,18 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
+		tokenStr := authHeader
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+		} else if strings.HasPrefix(authHeader, "bearer ") {
+			tokenStr = strings.TrimPrefix(authHeader, "bearer ")
+		}
+
+		tokenStr = strings.TrimSpace(tokenStr)
+		if tokenStr == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "formato token inválido"})
 			return
 		}
-
-		tokenStr := parts[1]
 
 		token, err := jwt.ParseWithClaims(
 			tokenStr,
@@ -48,6 +53,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 
 		c.Set("user_id", claims.UserID)
 		c.Set("role_id", claims.RoleID)
+		c.Set("tenant_id", claims.TenantID)
 
 		c.Next()
 	}

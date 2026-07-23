@@ -19,6 +19,7 @@ func NewGetAllRellenoSanitarioController(uc *application.ListRellenoSanitarioUse
 // @Produce      json
 // @Success      200 {object} entities.RellenoSanitarioListResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/relleno-sanitario/ [get]
 func (c *GetAllRellenoSanitarioController) Execute(ctx *gin.Context) {
 	result, err := c.uc.Execute()

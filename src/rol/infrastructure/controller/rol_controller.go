@@ -45,6 +45,7 @@ func (c *RolController) RegisterRoutes(group *gin.RouterGroup) {
 // @Success      201 {object} map[string]interface{}
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/roles [post]
 func (c *RolController) Create(ctx *gin.Context) {
 	var req struct {
@@ -70,6 +71,7 @@ func (c *RolController) Create(ctx *gin.Context) {
 // @Produce      json
 // @Success      200 {array} map[string]interface{}
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/roles [get]
 func (c *RolController) List(ctx *gin.Context) {
 	roles, err := c.listRolUC.Execute()
@@ -89,6 +91,7 @@ func (c *RolController) List(ctx *gin.Context) {
 // @Success      200 {object} map[string]interface{}
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/roles/{id} [put]
 func (c *RolController) Update(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -123,6 +126,7 @@ func (c *RolController) Update(ctx *gin.Context) {
 // @Success      200 {object} map[string]interface{}
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/roles/{id} [delete]
 func (c *RolController) Delete(ctx *gin.Context) {
 	idStr := ctx.Param("id")

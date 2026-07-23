@@ -27,6 +27,7 @@ func NewUpdateRutaController(uc *application.UpdateRutaUseCase) *UpdateRutaContr
 // @Success      200 {object} entities.EstadoCamionResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/rutas/{id} [put]
 func (ctr *UpdateRutaController) Run(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

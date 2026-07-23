@@ -25,6 +25,7 @@ func NewExistsRutaCamionByIDController(
 // @Success      200 {object} entities.HistorialAsignacionCamionListResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/ruta-camion/exists/{id} [get]
 func (c *ExistsRutaCamionByIDController) Run(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

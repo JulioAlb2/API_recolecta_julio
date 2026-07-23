@@ -25,6 +25,7 @@ func NewGetPuntoRecoleccionByIdController(uc *application.GetPuntoRecoleccionByI
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/puntos-recoleccion/{id} [get]
 func (c *GetPuntoRecoleccionByIdController) Run(ctx *gin.Context) {
 	idStr := ctx.Param("id")

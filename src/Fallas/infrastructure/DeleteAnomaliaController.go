@@ -25,6 +25,7 @@ func NewDeleteAnomaliaController(deleteUseCase *application.DeleteAnomaliaUseCas
 // @Param        id path int true "ID"
 // @Success      200 {object} entities.AnomaliaMessageResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/anomalias/{id} [delete]
 func (ctrl *DeleteAnomaliaController) Run(c *gin.Context) {
 	idParam := c.Param("id")

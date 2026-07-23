@@ -21,6 +21,7 @@ func NewGetAllRegistroVaciadoController(uc *application.ListAllRegistroVaciadoUs
 // @Produce      json
 // @Success      200 {object} entities.RegistroVaciadoListResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/registro-vaciado/ [get]
 func (c *GetAllRegistroVaciadoController) Run(ctx *gin.Context) {
 	result, err := c.uc.Execute()

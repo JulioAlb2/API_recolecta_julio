@@ -24,6 +24,7 @@ func NewCreateRegistroVaciadoController(uc *application.CreateRegistroVaciadoUse
 // @Param        body body entities.CreateRegistroVaciadoRequest true "Body"
 // @Success      201 {object} entities.RegistroVaciadoResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/registro-vaciado/ [post]
 func (c *CreateRegistroVaciadoController) Run(ctx *gin.Context) {
 	var registro entities.RegistroVaciado

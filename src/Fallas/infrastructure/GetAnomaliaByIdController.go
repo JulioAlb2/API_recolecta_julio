@@ -25,6 +25,7 @@ func NewGetAnomaliaByIdController(getByIdUseCase *application.GetAnomaliaByIdUse
 // @Param        id path int true "ID"
 // @Success      200 {object} entities.AnomaliaResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/anomalias/{id} [get]
 func (ctrl *GetAnomaliaByIdController) Run(c *gin.Context) {
 	idParam := c.Param("id")

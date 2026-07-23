@@ -24,6 +24,17 @@ type sendCitizenRequest struct {
 	Data    map[string]string `json:"data"`
 }
 
+// Run
+// @Summary      Enviar notificación push a ciudadanos específicos
+// @Description  Envía una notificación push a una lista de IDs de ciudadanos específicos.
+// @Tags         PushNotification
+// @Accept       json
+// @Produce      json
+// @Param        body body sendCitizenRequest true "Datos del mensaje"
+// @Success      200 {object} map[string]domain.SendResult "Detalles de envío para cada ciudadano"
+// @Failure      400 {object} map[string]string "error"
+// @Failure      500 {object} map[string]string "error"
+// @Router       /api/notificaciones-push/ciudadanos/enviar [post]
 func (ctrl *SendCitizenNotificationController) Run(c *gin.Context) {
 	var req sendCitizenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

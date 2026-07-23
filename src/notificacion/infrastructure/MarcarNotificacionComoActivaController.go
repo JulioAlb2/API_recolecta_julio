@@ -23,6 +23,7 @@ func NewMarcarNotificacionComoActivaController(useCase *application.MarcarNotifi
 // @Param        id path int true "ID"
 // @Success      200 {object} entities.NotificacionResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/notificaciones/{id}/reactivar [patch]
 func (ctrl *MarcarNotificacionComoActivaController) Run(c *gin.Context) {
 	idParam := c.Param("id")

@@ -28,6 +28,7 @@ func NewUpdatePuntoRecoleccionController(uc *application.UpdatePuntoRecoleccionU
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/puntos-recoleccion/{id} [put]
 func (c *UpdatePuntoRecoleccionController) Run(ctx *gin.Context) {
 	idStr := ctx.Param("id")

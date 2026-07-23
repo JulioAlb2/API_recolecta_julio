@@ -17,14 +17,23 @@ func NewRedisNotificationRepository(rdb *redis.Client) *RedisNotificationReposit
 func (r *RedisNotificationRepository) GetTokensByUserIDs(ctx context.Context, userIDs []string) (map[string]string, error) {
 	result := make(map[string]string)
 	for _, uid := range userIDs {
-		val, err := r.rdb.HGet(ctx, "fcm:tokens", uid).Result()
-		if err == redis.Nil {
-			continue
+		// Intenta obtener de user:<uid> (campo fcm_token)
+		userKey := "user:" + uid
+		val, err := r.rdb.HGet(ctx, userKey, "fcm_token").Result()
+		if err == redis.Nil || val == "" {
+			// Alternativa: intenta obtener de fcm:ciudadano:<uid> (valor string)
+			legacyKey := "fcm:ciudadano:" + uid
+			val, err = r.rdb.Get(ctx, legacyKey).Result()
+			if err == redis.Nil {
+				continue
+			}
 		}
 		if err != nil {
 			return nil, err
 		}
-		result[uid] = val
+		if val != "" {
+			result[uid] = val
+		}
 	}
 	return result, nil
 }

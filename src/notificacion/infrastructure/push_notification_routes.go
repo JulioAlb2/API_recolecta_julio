@@ -35,35 +35,47 @@ func (r *PushNotificationRouter) Run() {
 	rulesUc := application.NewManageNotificationRulesUseCase(rulesRepo)
 	rulesCtrl := NewNotificationRulesController(rulesUc)
 	traceRepo := NewRedisEventTraceRepository(core.GetRedis())
-	processEventUc := application.NewProcessTruckStateEventUseCase(rulesRepo, traceRepo)
 	queryEventTraceUc := application.NewQueryEventTraceUseCase(traceRepo)
-	processEventCtrl := NewTruckStateEventController(processEventUc, queryEventTraceUc)
+	processEventCtrl := NewTruckStateEventController(queryEventTraceUc)
 	adminRealtimeRepo := NewRedisAdminRealtimeSessionRepository(core.GetRedis())
 	adminRealtimeUc := application.NewManageAdminRealtimeSessionUseCase(adminRealtimeRepo)
 	adminRealtimeCtrl := NewAdminRealtimeSessionController(adminRealtimeUc)
 
-	group := r.engine.Group("/api/notifications")
+	inboxUc := application.NewGetCitizenInboxUseCase(core.GetRedis())
+	inboxCtrl := NewCitizenInboxController(inboxUc)
+
+	failedUc := application.NewQueryFailedNotificationsUseCase(core.GetRedis())
+	failedCtrl := NewFailedNotificationsController(failedUc)
+
+	broadcastUc := application.NewBroadcastCitizenNotificationUseCase(fcmClient, core.GetRedis())
+	broadcastCtrl := NewBroadcastCitizenNotificationController(broadcastUc)
+
+	group := r.engine.Group("/api/notificaciones-push")
 	{
-		group.POST("/citizens/send", ctrl.Run)
-		group.POST("/events/truck-state", processEventCtrl.Process)
-		group.GET("/events/traces/:event_id", processEventCtrl.GetByEventID)
-		group.GET("/events/traces/truck/:truck_id", processEventCtrl.ListByTruckID)
+		group.POST("/ciudadanos/enviar", ctrl.Run)
+		group.POST("/ciudadanos/difusion", broadcastCtrl.Broadcast)
+		group.POST("/ciudadanos/difusion/ruta/:route_id", broadcastCtrl.BroadcastRoute)
+		group.POST("/ciudadanos/difusion/punto/:point_id", broadcastCtrl.BroadcastPoint)
+		group.GET("/ciudadanos/:citizen_id/historial", inboxCtrl.GetInbox)
+		group.GET("/fallidas", failedCtrl.GetFailed)
+		group.GET("/eventos/trazas/:event_id", processEventCtrl.GetByEventID)
+		group.GET("/eventos/trazas/camion/:truck_id", processEventCtrl.ListByTruckID)
 	}
 
-	rulesGroup := r.engine.Group("/api/notifications/rules", core.JWTAuthMiddleware())
+	rulesGroup := r.engine.Group("/api/notificaciones-push/reglas", core.JWTAuthMiddleware())
 	{
 		rulesGroup.GET("", rulesCtrl.List)
-		rulesGroup.GET("/:state_code", rulesCtrl.GetByStateCode)
-		rulesGroup.PUT("/:state_code", rulesCtrl.Upsert)
-		rulesGroup.DELETE("/:state_code", rulesCtrl.Delete)
+		rulesGroup.GET("/:codigo_estado", rulesCtrl.GetByStateCode)
+		rulesGroup.PUT("/:codigo_estado", rulesCtrl.Upsert)
+		rulesGroup.DELETE("/:codigo_estado", rulesCtrl.Delete)
 	}
 
-	realtimeGroup := r.engine.Group("/api/realtime/ws")
+	realtimeGroup := r.engine.Group("/api/tiempo-real/ws")
 	{
-		realtimeGroup.POST("/upgrade-token", core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN), adminRealtimeCtrl.IssueUpgradeToken)
-		realtimeGroup.POST("/sessions/consume", adminRealtimeCtrl.ConsumeUpgradeToken)
-		realtimeGroup.POST("/sessions/:session_id/heartbeat", core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN), adminRealtimeCtrl.Heartbeat)
-		realtimeGroup.GET("/sessions/:session_id", core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN), adminRealtimeCtrl.GetSession)
-		realtimeGroup.DELETE("/sessions/:session_id", core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN), adminRealtimeCtrl.Disconnect)
+		realtimeGroup.POST("/generar-token", core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN), adminRealtimeCtrl.IssueUpgradeToken)
+		realtimeGroup.POST("/sesiones/consumir", adminRealtimeCtrl.ConsumeUpgradeToken)
+		realtimeGroup.POST("/sesiones/:session_id/latido", core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN), adminRealtimeCtrl.Heartbeat)
+		realtimeGroup.GET("/sesiones/:session_id", core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN), adminRealtimeCtrl.GetSession)
+		realtimeGroup.DELETE("/sesiones/:session_id", core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN), adminRealtimeCtrl.Disconnect)
 	}
 }

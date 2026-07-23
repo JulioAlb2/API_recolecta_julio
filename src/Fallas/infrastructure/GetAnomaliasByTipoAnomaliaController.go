@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/vicpoo/API_recolecta/src/Fallas/application"
+	"github.com/vicpoo/API_recolecta/src/Fallas/domain/entities"
 	"github.com/vicpoo/API_recolecta/src/core"
 )
 
@@ -24,11 +25,18 @@ func NewGetAnomaliasByTipoAnomaliaController(getByTipoAnomaliaUseCase *applicati
 // @Produce      json
 // @Success      200 {object} entities.AnomaliaResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/anomalias/tipo [get]
 func (ctrl *GetAnomaliasByTipoAnomaliaController) Run(c *gin.Context) {
-	tipoAnomalia := c.Query("tipo_anomalia")
-	if tipoAnomalia == "" {
+	tipoAnomaliaStr := c.Query("tipo_anomalia")
+	if tipoAnomaliaStr == "" {
 		core.RespondValidationError(c, "Parámetro de tipo_anomalia inválido", map[string]string{"tipo_anomalia": "requerido"})
+		return
+	}
+
+	tipoAnomalia, err := entities.ParseTipoAnomalia(tipoAnomaliaStr)
+	if err != nil {
+		core.RespondValidationError(c, "Parámetro de tipo_anomalia inválido", map[string]string{"tipo_anomalia": err.Error()})
 		return
 	}
 

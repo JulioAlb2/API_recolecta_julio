@@ -4,6 +4,7 @@ import "time"
 
 type Empleado struct {
 	ID          int        `json:"id"`
+	TenantID    int        `json:"tenant_id"`
 	Nombre      string     `json:"nombre"`
 	Apellidos   string     `json:"apellidos"`
 	Mail        string     `json:"mail"`

@@ -36,7 +36,7 @@ func NewEstadoCamionRoutes(
 
 func (r *EstadoCamionRoutes) Run() {
 	routes := r.engine.Group("/api/estado-camion")
-	routes.Use(core.JWTAuthMiddleware(), core.RequireRole(core.CONDUCTOR, core.SUPERVISOR, core.COORDINADOR))
+	routes.Use(core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN, core.CONDUCTOR, core.SUPERVISOR, core.COORDINADOR))
 	{
 		routes.POST("/", r.createEstadoCamionController.Run)
 		routes.GET("/", r.getAllEstadoCamionController.Run)

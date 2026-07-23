@@ -26,6 +26,7 @@ func NewGetRegistroVaciadoByIDController(uc *application.GetRegistroVaciadoByIDU
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/registro-vaciado/{id} [get]
 func (c *GetRegistroVaciadoByIDController) Run(ctx *gin.Context) {
 	idStr := ctx.Param("id")

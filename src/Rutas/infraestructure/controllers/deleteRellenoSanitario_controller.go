@@ -23,6 +23,7 @@ func NewDeleteRellenoSanitarioController(uc *application.DeleteRellenoSanitarioU
 // @Success      200 {object} entities.RellenoSanitarioMessageResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/relleno-sanitario/{id} [delete]
 func (c *DeleteRellenoSanitarioController) Execute(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

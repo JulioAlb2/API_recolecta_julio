@@ -24,6 +24,7 @@ func NewGetCamionByIDController(uc *application.GetCamionByIDUseCase) *GetCamion
 // @Param        id path int true "ID camión"
 // @Success      200 {object} entities.EstadoCamionResponse
 // @Failure      404 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/camion/{id} [get]
 func (ctr *GetCamionByIDController) Run(ctx *gin.Context) {
 	idParam := ctx.Param("id")

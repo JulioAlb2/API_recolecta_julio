@@ -1,11 +1,12 @@
 FROM golang:1.25-alpine
 
-# Instalar Air para hot-reload
-RUN go install github.com/cosmtrek/air@v1.52.1
+# Instalar Air para hot-reload y Swag para documentación
+RUN go install github.com/cosmtrek/air@v1.52.1 && \
+    go install github.com/swaggo/swag/cmd/swag@latest
 
 WORKDIR /app
 
 EXPOSE 8080
 
-# El código fuente se monta como volumen desde docker-compose (no se copia)
-CMD ["air", "-c", "/app/.air.toml"]
+# Al iniciar, correr swag init y luego iniciar air
+CMD ["sh", "-c", "swag init && air -c /app/.air.toml"]

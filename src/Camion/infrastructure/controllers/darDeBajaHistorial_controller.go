@@ -23,6 +23,7 @@ func NewDarDeBajaHistorialAsignacionController(uc *application.DarDeBajaHistoria
 // @Success      200 {object} entities.HistorialAsignacionCamionResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/historial-asignacion/baja/{id} [put]
 func (ctr *DarDeBajaHistorialAsignacionController) Run(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

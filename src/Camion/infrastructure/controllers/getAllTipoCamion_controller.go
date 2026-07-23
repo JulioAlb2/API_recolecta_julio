@@ -25,6 +25,7 @@ func NewGetAllTipoCamionController(
 // @Produce      json
 // @Success      200 {object} entities.HistorialAsignacionCamionListResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/tipo-camion/ [get]
 func (ctr *GetAllTipoCamionController) Run(ctx *gin.Context) {
 	tiposCamion, err := ctr.uc.Run()

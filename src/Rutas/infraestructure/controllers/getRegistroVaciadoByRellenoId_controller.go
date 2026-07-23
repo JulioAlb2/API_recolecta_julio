@@ -26,6 +26,7 @@ func NewGetRegistroVaciadoByRellenoIDController(
 // @Success      200 {object} entities.RegistroVaciadoResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/registro-vaciado/relleno/{relleno_id} [get]
 func (c *GetRegistroVaciadoByRellenoIDController) Run(ctx *gin.Context) {
 	rellenoID, err := strconv.Atoi(ctx.Param("relleno_id"))

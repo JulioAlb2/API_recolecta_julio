@@ -1,6 +1,70 @@
 \c proyecto_recolecta;
 
 -- =====================
+-- MULTITENANCY: COLUMNA + FK EN TABLAS PREEXISTENTES
+-- =====================
+-- CREATE TABLE IF NOT EXISTS (db_script.sql) no modifica una tabla que ya
+-- existe -- este bloque es el que de verdad garantiza tenant_id sin importar
+-- si la tabla es nueva o si ya tenia datos de antes. Ver docs/07-plan-multitenancy.md.
+
+DO $$
+DECLARE
+    tbl text;
+    tenant_tables text[] := ARRAY[
+        'empleado','licencia','dispositivos','historial_asignacion_camion','camion',
+        'alerta_mantenimiento','registro_mantenimiento','ruta_camion','ruta','punto_recoleccion',
+        'relleno_sanitario','estado_camion','registro_vaciado','colonia','ciudadano','domicilio',
+        'alerta_usuario','aviso','anomalia'
+    ];
+BEGIN
+    FOREACH tbl IN ARRAY tenant_tables LOOP
+        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1', tbl);
+
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_name = 'fk_' || tbl || '_tenant'
+        ) THEN
+            EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (tenant_id) REFERENCES tenant(tenant_id)', tbl, 'fk_' || tbl || '_tenant');
+        END IF;
+    END LOOP;
+END $$;
+
+-- =====================
+-- MULTITENANCY: ROW LEVEL SECURITY
+-- =====================
+-- empleado y ciudadano quedan fuera de RLS a proposito: el login los busca
+-- por email/username de forma global, antes de conocer el tenant -- forzar
+-- RLS ahi bloquearia el login de cualquiera que no fuera del tenant 1.
+-- El fallback a tenant 1 (en vez de bloquear todo sin contexto) permite
+-- activar RLS de forma incremental: los modulos que aun no llamen
+-- RunInTenantTx siguen funcionando igual que hoy. Ver docs/07-plan-multitenancy.md Fase 5.
+DO $$
+DECLARE
+    tbl text;
+    rls_tables text[] := ARRAY[
+        'licencia','dispositivos','historial_asignacion_camion','camion',
+        'alerta_mantenimiento','registro_mantenimiento','ruta_camion','ruta','punto_recoleccion',
+        'relleno_sanitario','estado_camion','registro_vaciado','colonia','domicilio',
+        'alerta_usuario','aviso','anomalia'
+    ];
+BEGIN
+    FOREACH tbl IN ARRAY rls_tables LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tbl);
+        EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', tbl);
+
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_policies
+            WHERE tablename = tbl AND policyname = 'tenant_isolation'
+        ) THEN
+            EXECUTE format(
+                'CREATE POLICY tenant_isolation ON %I USING (tenant_id = COALESCE(NULLIF(current_setting(%L, true), %L)::integer, 1))',
+                tbl, 'app.current_tenant', ''
+            );
+        END IF;
+    END LOOP;
+END $$;
+
+-- =====================
 -- CONSTRAINTS
 -- =====================
 
@@ -69,28 +133,66 @@ BEGIN
     END IF;
 END $$;
 
+-- =====================
+-- DISPOSITIVOS CONSTRAINTS & VALIDATIONS
+-- =====================
+
+CREATE OR REPLACE FUNCTION check_conductor_role()
+RETURNS TRIGGER AS $$
+DECLARE
+    rol_id_emp SMALLINT;
+BEGIN
+    SELECT rol_id INTO rol_id_emp FROM empleado WHERE id = NEW.conductor_id;
+    IF rol_id_emp IS NULL OR rol_id_emp <> 4 THEN
+        RAISE EXCEPTION 'El empleado con ID % no tiene el rol de Conductor (rol_id = 4)', NEW.conductor_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+    -- Validar FK de conductor en dispositivos
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_conductor_dispositivos'
+    ) THEN
+        ALTER TABLE dispositivos ADD CONSTRAINT fk_conductor_dispositivos FOREIGN KEY (conductor_id) REFERENCES empleado(id);
+    END IF;
+
+    -- Crear el trigger si no existe
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgname = 'trg_check_conductor_role'
+    ) THEN
+        CREATE TRIGGER trg_check_conductor_role
+        BEFORE INSERT OR UPDATE ON dispositivos
+        FOR EACH ROW
+        EXECUTE FUNCTION check_conductor_role();
+    END IF;
+END $$;
 
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.table_constraints
-        WHERE constraint_name = 'fk_empleado_historial'
+        WHERE constraint_name = 'fk_chofer_historial'
     ) THEN
-        ALTER TABLE historial_asignacion ADD CONSTRAINT fk_empleado_historial FOREIGN KEY (id_empleado) REFERENCES empleado(id);
+        ALTER TABLE historial_asignacion_camion ADD CONSTRAINT fk_chofer_historial FOREIGN KEY (id_chofer) REFERENCES empleado(id);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_camion_historial'
     ) THEN
-        ALTER TABLE historial_asignacion ADD CONSTRAINT fk_camion_historial FOREIGN KEY (id_camion) REFERENCES camion(id);
+        ALTER TABLE historial_asignacion_camion ADD CONSTRAINT fk_camion_historial FOREIGN KEY (id_camion) REFERENCES camion(id);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.table_constraints
-        WHERE constraint_name = 'uq_empleado_camion_historial'
+        WHERE constraint_name = 'uq_chofer_camion_historial'
     ) THEN
-        ALTER TABLE historial_asignacion ADD CONSTRAINT uq_empleado_camion_historial UNIQUE (id_empleado, id_camion, fecha_asignacion);
+        ALTER TABLE historial_asignacion_camion ADD CONSTRAINT uq_chofer_camion_historial UNIQUE (id_chofer, id_camion, fecha_asignacion);
     END IF;
 END $$;
 
@@ -100,14 +202,14 @@ BEGIN
         SELECT 1 FROM information_schema.check_constraints
         WHERE constraint_name = 'chk_fecha_asignacion'
     ) THEN
-        ALTER TABLE historial_asignacion ADD CONSTRAINT chk_fecha_asignacion CHECK (fecha_asignacion <= CURRENT_DATE);
+        ALTER TABLE historial_asignacion_camion ADD CONSTRAINT chk_fecha_asignacion CHECK (fecha_asignacion <= CURRENT_DATE);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.check_constraints
         WHERE constraint_name = 'chk_fecha_baja'
     ) THEN
-        ALTER TABLE historial_asignacion ADD CONSTRAINT chk_fecha_baja CHECK (fecha_baja IS NULL OR fecha_baja >= fecha_asignacion);
+        ALTER TABLE historial_asignacion_camion ADD CONSTRAINT chk_fecha_baja CHECK (fecha_baja IS NULL OR fecha_baja >= fecha_asignacion);
     END IF;
 END $$;
 
@@ -124,12 +226,31 @@ BEGIN
         SELECT 1 FROM information_schema.check_constraints
         WHERE constraint_name = 'fk_tipo_camion'
     ) THEN
-        ALTER TABLE camion ADD CONSTRAINT fk_tipo_camion FOREIGN KEY (tipo_id) REFERENCES tipo_camion(id);
+        ALTER TABLE camion ADD CONSTRAINT fk_tipo_camion FOREIGN KEY (tipo_id) REFERENCES tipo_camion(tipo_camion_id);
     END IF;
 END $$;
 
 DO $$
 BEGIN
+    -- Alerta Mantenimiento Constraints
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_camion_alerta_mantenimiento'
+    ) THEN
+        ALTER TABLE alerta_mantenimiento ADD CONSTRAINT fk_camion_alerta_mantenimiento FOREIGN KEY (camion_id) REFERENCES camion(id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_tipo_mantenimiento_alerta'
+    ) THEN
+        ALTER TABLE alerta_mantenimiento ADD CONSTRAINT fk_tipo_mantenimiento_alerta FOREIGN KEY (tipo_mantenimiento_id) REFERENCES tipo_mantenimiento(tipo_mantenimiento_id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    -- Registro Mantenimiento Constraints
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_camion_afectado'
@@ -139,40 +260,41 @@ BEGIN
 
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.table_constraints
-        WHERE constraint_name = 'fk_tipo_mantenimiento'
+        WHERE constraint_name = 'fk_alerta_mantenimiento_registro'
     ) THEN
-        ALTER TABLE registro_mantenimiento ADD CONSTRAINT fk_tipo_mantenimiento FOREIGN KEY (tipo_mantenimiento) REFERENCES tipo_mantenimiento(id);
+        ALTER TABLE registro_mantenimiento ADD CONSTRAINT fk_alerta_mantenimiento_registro FOREIGN KEY (alerta_id) REFERENCES alerta_mantenimiento(alerta_id);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.check_constraints
         WHERE constraint_name = 'chk_kilometraje_mantenimiento'
     ) THEN
-        ALTER TABLE registro_mantenimiento ADD CONSTRAINT chk_kilometraje_mantenimiento CHECK (kilometraje >= 0);
+        ALTER TABLE registro_mantenimiento ADD CONSTRAINT chk_kilometraje_mantenimiento CHECK (kilometraje_mantenimiento >= 0);
     END IF;
 END $$;
 
 DO $$
 BEGIN
+    -- Ruta Camion Constraints
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_camion_asignado_ruta'
     ) THEN
-        ALTER TABLE registro_asignacion_ruta ADD CONSTRAINT fk_camion_asignado_ruta FOREIGN KEY (camion_id) REFERENCES camion(id);
+        ALTER TABLE ruta_camion ADD CONSTRAINT fk_camion_asignado_ruta FOREIGN KEY (camion_id) REFERENCES camion(id);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.check_constraints
         WHERE constraint_name = 'chk_fecha_asignacion_ruta'
     ) THEN
-        ALTER TABLE registro_asignacion_ruta ADD CONSTRAINT chk_fecha_asignacion_ruta CHECK (fecha_asignacion <= CURRENT_DATE);
+        ALTER TABLE ruta_camion ADD CONSTRAINT chk_fecha_asignacion_ruta CHECK (fecha <= CURRENT_DATE);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_ruta_asignada'
     ) THEN
-        ALTER TABLE registro_asignacion_ruta ADD CONSTRAINT fk_ruta_asignada FOREIGN KEY (ruta_id) REFERENCES ruta(id);
+        ALTER TABLE ruta_camion ADD CONSTRAINT fk_ruta_asignada FOREIGN KEY (ruta_id) REFERENCES ruta(id);
     END IF;
 END $$;
 
@@ -182,7 +304,7 @@ BEGIN
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_colonia_ruta'
     ) THEN
-        ALTER TABLE ruta ADD CONSTRAINT fk_colonia_ruta FOREIGN KEY (colonia_id) REFERENCES colonia(id);
+        ALTER TABLE ruta ADD CONSTRAINT fk_colonia_ruta FOREIGN KEY (colonia_id) REFERENCES colonia(colonia_id);
     END IF;
 
     IF NOT EXISTS (
@@ -247,7 +369,7 @@ BEGIN
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_colonia_domicilio'
     ) THEN
-        ALTER TABLE domicilio ADD CONSTRAINT fk_colonia_domicilio FOREIGN KEY (colonia_id) REFERENCES colonia(id);
+        ALTER TABLE domicilio ADD CONSTRAINT fk_colonia_domicilio FOREIGN KEY (colonia_id) REFERENCES colonia(colonia_id);
     END IF;
 
     IF NOT EXISTS (
@@ -258,3 +380,123 @@ BEGIN
     END IF;
 
 END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_camion_estado'
+    ) THEN
+        ALTER TABLE estado_camion ADD CONSTRAINT fk_camion_estado FOREIGN KEY (camion_id) REFERENCES camion(id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_relleno_vaciado'
+    ) THEN
+        ALTER TABLE registro_vaciado ADD CONSTRAINT fk_relleno_vaciado FOREIGN KEY (relleno_id) REFERENCES relleno_sanitario(relleno_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_ruta_camion_vaciado'
+    ) THEN
+        ALTER TABLE registro_vaciado ADD CONSTRAINT fk_ruta_camion_vaciado FOREIGN KEY (ruta_camion_id) REFERENCES ruta_camion(ruta_camion_id);
+    END IF;
+END $$;
+
+-- Migración: convertir tipo_anomalia de VARCHAR(50) + CHECK a un enum
+-- nativo de Postgres (tipo_anomalia_enum), equivalente al enum TipoAnomalia
+-- en Go. Es idempotente: no hace nada si la columna ya usa el enum.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_anomalia_enum') THEN
+        CREATE TYPE tipo_anomalia_enum AS ENUM (
+            'ANOMALIA',
+            'INCIDENCIA',
+            'REPORTE_CONDUCTOR',
+            'REPORTE_FALLA_CRITICA',
+            'SEGUIMIENTO_FALLA_CRITICA'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'anomalia' AND column_name = 'tipo_anomalia' AND udt_name <> 'tipo_anomalia_enum'
+    ) THEN
+        IF EXISTS (
+            SELECT 1 FROM information_schema.check_constraints
+            WHERE constraint_name = 'chk_tipo_anomalia'
+        ) THEN
+            ALTER TABLE anomalia DROP CONSTRAINT chk_tipo_anomalia;
+        END IF;
+
+        ALTER TABLE anomalia
+            ALTER COLUMN tipo_anomalia TYPE tipo_anomalia_enum
+            USING tipo_anomalia::tipo_anomalia_enum;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    -- Anomalia Constraints
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_punto_anomalia'
+    ) THEN
+        ALTER TABLE anomalia ADD CONSTRAINT fk_punto_anomalia FOREIGN KEY (punto_id) REFERENCES punto_recoleccion(id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_conductor_anomalia'
+    ) THEN
+        ALTER TABLE anomalia ADD CONSTRAINT fk_conductor_anomalia FOREIGN KEY (conductor_id) REFERENCES empleado(id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_camion_anomalia'
+    ) THEN
+        ALTER TABLE anomalia ADD CONSTRAINT fk_camion_anomalia FOREIGN KEY (camion_id) REFERENCES camion(id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_ruta_anomalia'
+    ) THEN
+        ALTER TABLE anomalia ADD CONSTRAINT fk_ruta_anomalia FOREIGN KEY (ruta_id) REFERENCES ruta(id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_referencia_anomalia'
+    ) THEN
+        ALTER TABLE anomalia ADD CONSTRAINT fk_referencia_anomalia FOREIGN KEY (anomalia_referencia_id) REFERENCES anomalia(anomalia_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.check_constraints
+        WHERE constraint_name = 'chk_estado_anomalia'
+    ) THEN
+        ALTER TABLE anomalia ADD CONSTRAINT chk_estado_anomalia CHECK (estado IS NULL OR estado IN ('PENDIENTE', 'EN_PROCESO', 'RESUELTA'));
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.check_constraints
+        WHERE constraint_name = 'chk_descripcion_anomalia'
+    ) THEN
+        ALTER TABLE anomalia ADD CONSTRAINT chk_descripcion_anomalia CHECK (descripcion <> '');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.check_constraints
+        WHERE constraint_name = 'chk_fecha_resolucion_anomalia'
+    ) THEN
+        ALTER TABLE anomalia ADD CONSTRAINT chk_fecha_resolucion_anomalia CHECK (fecha_resolucion IS NULL OR fecha_resolucion >= fecha_reporte);
+    END IF;
+END $$;
+

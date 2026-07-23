@@ -28,6 +28,7 @@ func NewUpdateAnomaliaController(updateUseCase *application.UpdateAnomaliaUseCas
 // @Param        id path int true "ID"
 // @Success      200 {object} entities.AnomaliaResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/anomalias/{id} [put]
 func (ctrl *UpdateAnomaliaController) Run(c *gin.Context) {
 	idParam := c.Param("id")
@@ -38,18 +39,31 @@ func (ctrl *UpdateAnomaliaController) Run(c *gin.Context) {
 	}
 
 	var request struct {
-		PuntoID         *int32  `json:"punto_id"`
-		TipoAnomalia    string  `json:"tipo_anomalia" binding:"required"`
-		Descripcion     string  `json:"descripcion" binding:"required"`
-		FechaReporte    string  `json:"fecha_reporte" binding:"required"`
-		Estado          string  `json:"estado" binding:"required"`
-		FechaResolucion *string `json:"fecha_resolucion"`
-		IDChoferID      int32   `json:"id_chofer_id" binding:"required"`
+		TipoAnomalia         string  `json:"tipo_anomalia" binding:"required"`
+		PuntoID              *int32  `json:"punto_id"`
+		ConductorID          *int32  `json:"conductor_id"`
+		CamionID             *int32  `json:"camion_id"`
+		RutaID               *int32  `json:"ruta_id"`
+		AnomaliaReferenciaID *int32  `json:"anomalia_referencia_id"`
+		Descripcion          string  `json:"descripcion" binding:"required"`
+		JsonRuta             string  `json:"json_ruta"`
+		Estado               string  `json:"estado" binding:"required"`
+		Eliminado            bool    `json:"eliminado"`
+		FechaReporte         string  `json:"fecha_reporte" binding:"required"`
+		FechaResolucion      *string `json:"fecha_resolucion"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		core.RespondValidationError(c, "Datos de entrada inválidos", map[string]string{
 			"error": err.Error(),
+		})
+		return
+	}
+
+	tipoAnomalia, err := entities.ParseTipoAnomalia(request.TipoAnomalia)
+	if err != nil {
+		core.RespondValidationError(c, "Tipo de anomalía inválido", map[string]string{
+			"tipo_anomalia": err.Error(),
 		})
 		return
 	}
@@ -78,14 +92,19 @@ func (ctrl *UpdateAnomaliaController) Run(c *gin.Context) {
 	}
 
 	anomalia := &entities.Anomalia{
-		AnomaliaID:      int32(id),
-		PuntoID:         request.PuntoID,
-		TipoAnomalia:    request.TipoAnomalia,
-		Descripcion:     request.Descripcion,
-		FechaReporte:    fechaReporte,
-		Estado:          request.Estado,
-		FechaResolucion: fechaResolucionPtr,
-		IDChoferID:      request.IDChoferID,
+		AnomaliaID:           int32(id),
+		TipoAnomalia:         tipoAnomalia,
+		PuntoID:              request.PuntoID,
+		ConductorID:          request.ConductorID,
+		CamionID:             request.CamionID,
+		RutaID:               request.RutaID,
+		AnomaliaReferenciaID: request.AnomaliaReferenciaID,
+		Descripcion:          request.Descripcion,
+		JsonRuta:             request.JsonRuta,
+		Estado:               request.Estado,
+		Eliminado:            request.Eliminado,
+		FechaReporte:         fechaReporte,
+		FechaResolucion:      fechaResolucionPtr,
 	}
 
 	updatedAnomalia, err := ctrl.updateUseCase.Run(anomalia)

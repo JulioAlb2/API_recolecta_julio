@@ -4,7 +4,6 @@ package infrastructure
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -23,1237 +22,187 @@ func NewPostgresNotificacionRepository() repositories.INotificacion {
 	return &PostgresNotificacionRepository{pool: pool}
 }
 
-// ==================== CRUD BÁSICO ====================
+// Proyección de la tabla anomalia al formato de entities.Notificacion
+const querySelectNotificacion = `
+	SELECT 
+		anomalia_id AS notificacion_id,
+		conductor_id AS usuario_id,
+		tipo_anomalia AS tipo,
+		'Notificación de ' || tipo_anomalia AS titulo,
+		descripcion AS mensaje,
+		COALESCE(estado != 'RESUELTA', true) AS activa,
+		camion_id AS id_camion_relacionado,
+		NULL::integer AS id_falla_relacionado,
+		NULL::integer AS id_mantenimiento_relacionado,
+		conductor_id AS creado_por,
+		fecha_reporte AS created_at
+	FROM anomalia
+`
 
-func (pg *PostgresNotificacionRepository) Save(notificacion *entities.Notificacion) error {
-	query := `
-		INSERT INTO notificacion (
-			usuario_id, 
-			tipo, 
-			titulo, 
-			mensaje, 
-			activa, 
-			id_camion_relacionado, 
-			id_falla_relacionado, 
-			id_mantenimiento_relacionado, 
-			creado_por, 
-			created_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING notificacion_id
-	`
-	
+func (pg *PostgresNotificacionRepository) executeListQuery(query string, args ...interface{}) ([]entities.Notificacion, error) {
 	ctx := context.Background()
-	
-	var id int32
-	err := pg.pool.QueryRow(
-		ctx,
-		query, 
-		notificacion.UsuarioID, 
-		notificacion.Tipo,
-		notificacion.Titulo,
-		notificacion.Mensaje,
-		notificacion.Activa,
-		notificacion.IDCamionRelacionado,
-		notificacion.IDFallaRelacionado,
-		notificacion.IDMantenimientoRelacionado,
-		notificacion.CreadoPor,
-		notificacion.CreatedAt,
-	).Scan(&id)
-	
+	rows, err := pg.pool.Query(ctx, query, args...)
 	if err != nil {
-		log.Println("Error al guardar la notificación:", err)
-		return err
-	}
-	
-	notificacion.NotificacionID = id
-	return nil
-}
-
-func (pg *PostgresNotificacionRepository) SaveForMultipleUsers(notificacion *entities.Notificacion, usuarioIDs []int32) error {
-	if len(usuarioIDs) == 0 {
-		return fmt.Errorf("se requiere al menos un usuario destinatario")
-	}
-
-	ctx := context.Background()
-	tx, err := pg.pool.Begin(ctx)
-	if err != nil {
-		log.Println("Error al iniciar transacción:", err)
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	var notificacionID int32
-
-	for _, usuarioID := range usuarioIDs {
-		query := `
-			INSERT INTO notificacion (
-				usuario_id, tipo, titulo, mensaje, activa, 
-				id_camion_relacionado, id_falla_relacionado, 
-				id_mantenimiento_relacionado, creado_por, created_at
-			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-			RETURNING notificacion_id
-		`
-
-		err = tx.QueryRow(
-			ctx, query,
-			usuarioID,
-			notificacion.Tipo,
-			notificacion.Titulo,
-			notificacion.Mensaje,
-			notificacion.Activa,
-			notificacion.IDCamionRelacionado,
-			notificacion.IDFallaRelacionado,
-			notificacion.IDMantenimientoRelacionado,
-			notificacion.CreadoPor,
-			notificacion.CreatedAt,
-		).Scan(&notificacionID)
-
-		if err != nil {
-			log.Printf("Error al guardar notificación para usuario %d: %v", usuarioID, err)
-			return err
-		}
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		log.Println("Error al hacer commit:", err)
-		return err
-	}
-
-	log.Printf("Notificaciones creadas para %d usuarios", len(usuarioIDs))
-	return nil
-}
-
-func (pg *PostgresNotificacionRepository) SaveForAllUsers(notificacion *entities.Notificacion) error {
-	queryGetUsers := `SELECT user_id FROM usuario WHERE eliminado = false OR eliminado IS NULL`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, queryGetUsers)
-	if err != nil {
-		log.Println("Error al obtener usuarios:", err)
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 
-	var usuarioIDs []int32
+	var notificaciones []entities.Notificacion
 	for rows.Next() {
-		var userID int32
-		if err := rows.Scan(&userID); err != nil {
-			log.Println("Error al escanear usuario:", err)
-			return err
+		var n entities.Notificacion
+		err := rows.Scan(
+			&n.NotificacionID,
+			&n.UsuarioID,
+			&n.Tipo,
+			&n.Titulo,
+			&n.Mensaje,
+			&n.Activa,
+			&n.IDCamionRelacionado,
+			&n.IDFallaRelacionado,
+			&n.IDMantenimientoRelacionado,
+			&n.CreadoPor,
+			&n.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
 		}
-		usuarioIDs = append(usuarioIDs, userID)
+		notificaciones = append(notificaciones, n)
 	}
-
-	if len(usuarioIDs) == 0 {
-		return fmt.Errorf("no hay usuarios disponibles para notificar")
-	}
-
-	return pg.SaveForMultipleUsers(notificacion, usuarioIDs)
-}
-
-func (pg *PostgresNotificacionRepository) Update(notificacion *entities.Notificacion) error {
-	query := `
-		UPDATE notificacion
-		SET 
-			usuario_id = $1, 
-			tipo = $2, 
-			titulo = $3, 
-			mensaje = $4, 
-			activa = $5, 
-			id_camion_relacionado = $6, 
-			id_falla_relacionado = $7, 
-			id_mantenimiento_relacionado = $8, 
-			creado_por = $9
-		WHERE notificacion_id = $10
-	`
-	
-	ctx := context.Background()
-	cmdTag, err := pg.pool.Exec(
-		ctx,
-		query, 
-		notificacion.UsuarioID, 
-		notificacion.Tipo,
-		notificacion.Titulo,
-		notificacion.Mensaje,
-		notificacion.Activa,
-		notificacion.IDCamionRelacionado,
-		notificacion.IDFallaRelacionado,
-		notificacion.IDMantenimientoRelacionado,
-		notificacion.CreadoPor,
-		notificacion.NotificacionID,
-	)
-	
-	if err != nil {
-		log.Println("Error al actualizar la notificación:", err)
-		return err
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("notificación con ID %d no encontrada", notificacion.NotificacionID)
-	}
-
-	return nil
-}
-
-func (pg *PostgresNotificacionRepository) Delete(id int32) error {
-	query := `
-		DELETE FROM notificacion
-		WHERE notificacion_id = $1
-	`
-	
-	ctx := context.Background()
-	cmdTag, err := pg.pool.Exec(ctx, query, id)
-	if err != nil {
-		log.Println("Error al eliminar la notificación:", err)
-		return err
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("notificación con ID %d no encontrada", id)
-	}
-
-	return nil
+	return notificaciones, nil
 }
 
 func (pg *PostgresNotificacionRepository) GetByID(id int32) (*entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE notificacion_id = $1
-	`
-	
+	query := querySelectNotificacion + " WHERE anomalia_id = $1"
 	ctx := context.Background()
 	row := pg.pool.QueryRow(ctx, query, id)
 
-	var notificacion entities.Notificacion
+	var n entities.Notificacion
 	err := row.Scan(
-		&notificacion.NotificacionID,
-		&notificacion.UsuarioID,
-		&notificacion.Tipo,
-		&notificacion.Titulo,
-		&notificacion.Mensaje,
-		&notificacion.Activa,
-		&notificacion.IDCamionRelacionado,
-		&notificacion.IDFallaRelacionado,
-		&notificacion.IDMantenimientoRelacionado,
-		&notificacion.CreadoPor,
-		&notificacion.CreatedAt,
+		&n.NotificacionID,
+		&n.UsuarioID,
+		&n.Tipo,
+		&n.Titulo,
+		&n.Mensaje,
+		&n.Activa,
+		&n.IDCamionRelacionado,
+		&n.IDFallaRelacionado,
+		&n.IDMantenimientoRelacionado,
+		&n.CreadoPor,
+		&n.CreatedAt,
 	)
-	
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("notificación con ID %d no encontrada", id)
 		}
-		log.Println("Error al buscar la notificación por ID:", err)
 		return nil, err
 	}
-
-	return &notificacion, nil
+	return &n, nil
 }
 
 func (pg *PostgresNotificacionRepository) GetAll() ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query)
-	if err != nil {
-		log.Println("Error al obtener todas las notificaciones:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query)
 }
 
 func (pg *PostgresNotificacionRepository) GetActivas() ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE activa = true
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query)
-	if err != nil {
-		log.Println("Error al obtener notificaciones activas:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE COALESCE(estado != 'RESUELTA', true) AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query)
 }
 
 func (pg *PostgresNotificacionRepository) GetInactivas() ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE activa = false
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query)
-	if err != nil {
-		log.Println("Error al obtener notificaciones inactivas:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE estado = 'RESUELTA' AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query)
 }
 
 func (pg *PostgresNotificacionRepository) GetGlobales() ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE usuario_id IS NULL
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query)
-	if err != nil {
-		log.Println("Error al obtener notificaciones globales:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE conductor_id IS NULL AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query)
 }
 
 func (pg *PostgresNotificacionRepository) GetByUsuarioID(usuarioID int32) ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE usuario_id = $1
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, usuarioID)
-	if err != nil {
-		log.Println("Error al obtener notificaciones por usuario ID:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE conductor_id = $1 AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query, usuarioID)
 }
 
 func (pg *PostgresNotificacionRepository) GetActivasByUsuarioID(usuarioID int32) ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE usuario_id = $1 AND activa = true
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, usuarioID)
-	if err != nil {
-		log.Println("Error al obtener notificaciones activas por usuario ID:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE conductor_id = $1 AND COALESCE(estado != 'RESUELTA', true) AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query, usuarioID)
 }
 
 func (pg *PostgresNotificacionRepository) GetByTipo(tipo string) ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE tipo = $1
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, tipo)
-	if err != nil {
-		log.Println("Error al obtener notificaciones por tipo:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE tipo_anomalia = $1 AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query, tipo)
 }
 
 func (pg *PostgresNotificacionRepository) GetByUsuarioYTipo(usuarioID int32, tipo string) ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE usuario_id = $1 AND tipo = $2
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, usuarioID, tipo)
-	if err != nil {
-		log.Println("Error al obtener notificaciones por usuario y tipo:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE conductor_id = $1 AND tipo_anomalia = $2 AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query, usuarioID, tipo)
 }
 
 func (pg *PostgresNotificacionRepository) GetByCamionID(camionID int32) ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE id_camion_relacionado = $1
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, camionID)
-	if err != nil {
-		log.Println("Error al obtener notificaciones por camión ID:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE camion_id = $1 AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query, camionID)
 }
 
 func (pg *PostgresNotificacionRepository) GetByCamionYTipo(camionID int32, tipo string) ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE id_camion_relacionado = $1 AND tipo = $2
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, camionID, tipo)
-	if err != nil {
-		log.Println("Error al obtener notificaciones por camión y tipo:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
-}
-
-func (pg *PostgresNotificacionRepository) GetByCreadoPor(creadoPor int32) ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE creado_por = $1
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, creadoPor)
-	if err != nil {
-		log.Println("Error al obtener notificaciones por creador:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
-}
-
-func (pg *PostgresNotificacionRepository) GetByFallaID(fallaID int32) ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE id_falla_relacionado = $1
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, fallaID)
-	if err != nil {
-		log.Println("Error al obtener notificaciones por falla ID:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
-}
-
-func (pg *PostgresNotificacionRepository) GetByMantenimientoID(mantenimientoID int32) ([]entities.Notificacion, error) {
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE id_mantenimiento_relacionado = $1
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, mantenimientoID)
-	if err != nil {
-		log.Println("Error al obtener notificaciones por mantenimiento ID:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
+	query := querySelectNotificacion + " WHERE camion_id = $1 AND tipo_anomalia = $2 AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query, camionID, tipo)
 }
 
 func (pg *PostgresNotificacionRepository) GetByFechaRange(fechaInicio, fechaFin string) ([]entities.Notificacion, error) {
-	startTime, err := time.Parse("2006-01-02", fechaInicio)
-	if err != nil {
-		return nil, fmt.Errorf("formato de fecha_inicio inválido: %v", err)
+	startTime, errStart := time.Parse("2006-01-02", fechaInicio)
+	endTime, errEnd := time.Parse("2006-01-02", fechaFin)
+	if errStart != nil || errEnd != nil {
+		return nil, fmt.Errorf("formato de fecha inválido. Usar YYYY-MM-DD")
 	}
-	
-	endTime, err := time.Parse("2006-01-02", fechaFin)
-	if err != nil {
-		return nil, fmt.Errorf("formato de fecha_fin inválido: %v", err)
-	}
-	
 	endTime = endTime.Add(24 * time.Hour)
-	
-	query := `
-		SELECT 
-			notificacion_id,
-			usuario_id,
-			tipo,
-			titulo,
-			mensaje,
-			activa,
-			id_camion_relacionado,
-			id_falla_relacionado,
-			id_mantenimiento_relacionado,
-			creado_por,
-			created_at
-		FROM notificacion
-		WHERE created_at BETWEEN $1 AND $2
-		ORDER BY created_at DESC
-	`
-	
-	ctx := context.Background()
-	rows, err := pg.pool.Query(ctx, query, startTime, endTime)
-	if err != nil {
-		log.Println("Error al obtener notificaciones por rango de fechas:", err)
-		return nil, err
-	}
-	defer rows.Close()
 
-	var notificaciones []entities.Notificacion
-	for rows.Next() {
-		var notificacion entities.Notificacion
-		err := rows.Scan(
-			&notificacion.NotificacionID,
-			&notificacion.UsuarioID,
-			&notificacion.Tipo,
-			&notificacion.Titulo,
-			&notificacion.Mensaje,
-			&notificacion.Activa,
-			&notificacion.IDCamionRelacionado,
-			&notificacion.IDFallaRelacionado,
-			&notificacion.IDMantenimientoRelacionado,
-			&notificacion.CreadoPor,
-			&notificacion.CreatedAt,
-		)
-		if err != nil {
-			log.Println("Error al escanear la notificación:", err)
-			return nil, err
-		}
-		notificaciones = append(notificaciones, notificacion)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println("Error después de iterar filas:", err)
-		return nil, err
-	}
-
-	return notificaciones, nil
-}
-
-func (pg *PostgresNotificacionRepository) CountByUsuarioID(usuarioID int32) (int64, error) {
-	query := `
-		SELECT COUNT(*)
-		FROM notificacion
-		WHERE usuario_id = $1
-	`
-	
-	ctx := context.Background()
-	var count int64
-	err := pg.pool.QueryRow(ctx, query, usuarioID).Scan(&count)
-	if err != nil {
-		log.Println("Error al contar notificaciones por usuario ID:", err)
-		return 0, err
-	}
-
-	return count, nil
-}
-
-func (pg *PostgresNotificacionRepository) CountActivasByUsuarioID(usuarioID int32) (int64, error) {
-	query := `
-		SELECT COUNT(*)
-		FROM notificacion
-		WHERE usuario_id = $1 AND activa = true
-	`
-	
-	ctx := context.Background()
-	var count int64
-	err := pg.pool.QueryRow(ctx, query, usuarioID).Scan(&count)
-	if err != nil {
-		log.Println("Error al contar notificaciones activas por usuario ID:", err)
-		return 0, err
-	}
-
-	return count, nil
-}
-
-func (pg *PostgresNotificacionRepository) CountByTipo(tipo string) (int64, error) {
-	query := `
-		SELECT COUNT(*)
-		FROM notificacion
-		WHERE tipo = $1
-	`
-	
-	ctx := context.Background()
-	var count int64
-	err := pg.pool.QueryRow(ctx, query, tipo).Scan(&count)
-	if err != nil {
-		log.Println("Error al contar notificaciones por tipo:", err)
-		return 0, err
-	}
-
-	return count, nil
-}
-
-func (pg *PostgresNotificacionRepository) CountByCamionID(camionID int32) (int64, error) {
-	query := `
-		SELECT COUNT(*)
-		FROM notificacion
-		WHERE id_camion_relacionado = $1
-	`
-	
-	ctx := context.Background()
-	var count int64
-	err := pg.pool.QueryRow(ctx, query, camionID).Scan(&count)
-	if err != nil {
-		log.Println("Error al contar notificaciones por camión ID:", err)
-		return 0, err
-	}
-
-	return count, nil
+	query := querySelectNotificacion + " WHERE fecha_reporte BETWEEN $1 AND $2 AND eliminado = false ORDER BY fecha_reporte DESC"
+	return pg.executeListQuery(query, startTime, endTime)
 }
 
 func (pg *PostgresNotificacionRepository) MarcarComoLeida(id int32) error {
-	query := `
-		UPDATE notificacion
-		SET activa = false
-		WHERE notificacion_id = $1
-	`
-	
-	ctx := context.Background()
-	cmdTag, err := pg.pool.Exec(ctx, query, id)
-	if err != nil {
-		log.Println("Error al marcar notificación como leída:", err)
-		return err
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("notificación con ID %d no encontrada", id)
-	}
-
-	return nil
+	query := "UPDATE anomalia SET estado = 'RESUELTA', fecha_resolucion = NOW() WHERE anomalia_id = $1"
+	_, err := pg.pool.Exec(context.Background(), query, id)
+	return err
 }
 
 func (pg *PostgresNotificacionRepository) MarcarComoActiva(id int32) error {
-	query := `
-		UPDATE notificacion
-		SET activa = true
-		WHERE notificacion_id = $1
-	`
-	
-	ctx := context.Background()
-	cmdTag, err := pg.pool.Exec(ctx, query, id)
-	if err != nil {
-		log.Println("Error al marcar notificación como activa:", err)
-		return err
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("notificación con ID %d no encontrada", id)
-	}
-
-	return nil
+	query := "UPDATE anomalia SET estado = 'PENDIENTE', fecha_resolucion = NULL WHERE anomalia_id = $1"
+	_, err := pg.pool.Exec(context.Background(), query, id)
+	return err
 }
 
 func (pg *PostgresNotificacionRepository) MarcarTodasComoLeidas(usuarioID int32) error {
-	query := `
-		UPDATE notificacion
-		SET activa = false
-		WHERE usuario_id = $1 AND activa = true
-	`
-	
-	ctx := context.Background()
-	cmdTag, err := pg.pool.Exec(ctx, query, usuarioID)
-	if err != nil {
-		log.Println("Error al marcar todas las notificaciones como leídas:", err)
-		return err
-	}
-
-	log.Printf("Notificaciones marcadas como leídas: %d filas afectadas", cmdTag.RowsAffected())
-	return nil
+	query := "UPDATE anomalia SET estado = 'RESUELTA', fecha_resolucion = NOW() WHERE conductor_id = $1 AND COALESCE(estado != 'RESUELTA', true)"
+	_, err := pg.pool.Exec(context.Background(), query, usuarioID)
+	return err
 }
 
-func (pg *PostgresNotificacionRepository) CrearNotificacionFalla(usuarioID *int32, titulo string, mensaje string, camionID int32, fallaID int32, creadoPor *int32) error {
-	notificacion := entities.NewNotificacionFalla(
-		usuarioID,
-		titulo,
-		mensaje,
-		camionID,
-		fallaID,
-		creadoPor,
-	)
-	
-	return pg.Save(notificacion)
+func (pg *PostgresNotificacionRepository) CountActivasByUsuarioID(usuarioID int32) (int64, error) {
+	query := `SELECT COUNT(*) FROM anomalia WHERE conductor_id = $1 AND COALESCE(estado != 'RESUELTA', true) AND eliminado = false`
+	var count int64
+	err := pg.pool.QueryRow(context.Background(), query, usuarioID).Scan(&count)
+	return count, err
 }
 
-func (pg *PostgresNotificacionRepository) CrearNotificacionMantenimiento(usuarioID *int32, titulo string, mensaje string, camionID int32, mantenimientoID int32, creadoPor *int32) error {
-	notificacion := entities.NewNotificacionMantenimiento(
-		usuarioID,
-		titulo,
-		mensaje,
-		camionID,
-		mantenimientoID,
-		creadoPor,
-	)
-	
-	return pg.Save(notificacion)
+func (pg *PostgresNotificacionRepository) CountByUsuarioID(usuarioID int32) (int64, error) {
+	query := `SELECT COUNT(*) FROM anomalia WHERE conductor_id = $1 AND eliminado = false`
+	var count int64
+	err := pg.pool.QueryRow(context.Background(), query, usuarioID).Scan(&count)
+	return count, err
 }
 
-func (pg *PostgresNotificacionRepository) CrearNotificacionEmergencia(usuarioID *int32, titulo string, mensaje string, camionID int32, creadoPor *int32) error {
-	notificacion := entities.NewNotificacionEmergencia(
-		usuarioID,
-		titulo,
-		mensaje,
-		camionID,
-		creadoPor,
-	)
-	
-	return pg.Save(notificacion)
+func (pg *PostgresNotificacionRepository) CountByTipo(tipo string) (int64, error) {
+	query := `SELECT COUNT(*) FROM anomalia WHERE tipo_anomalia = $1 AND eliminado = false`
+	var count int64
+	err := pg.pool.QueryRow(context.Background(), query, tipo).Scan(&count)
+	return count, err
+}
+
+func (pg *PostgresNotificacionRepository) CountByCamionID(camionID int32) (int64, error) {
+	query := `SELECT COUNT(*) FROM anomalia WHERE camion_id = $1 AND eliminado = false`
+	var count int64
+	err := pg.pool.QueryRow(context.Background(), query, camionID).Scan(&count)
+	return count, err
 }

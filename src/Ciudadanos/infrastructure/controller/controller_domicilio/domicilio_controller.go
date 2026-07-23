@@ -63,6 +63,8 @@ func (c *DomicilioController) Create(ctx *gin.Context) {
 		Calle:       body.Calle,
 		Numero:      body.Numero,
 		Referencia:  body.Referencia,
+		Lat:         body.Lat,
+		Lon:         body.Lon,
 	}
 
 	id, err := c.create.Execute(ctx.Request.Context(), appInput)

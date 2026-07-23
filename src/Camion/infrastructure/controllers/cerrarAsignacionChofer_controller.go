@@ -23,6 +23,7 @@ func NewCerrarAsignacionActivaChoferController(uc *application.CerrarAsignacionA
 // @Success      200 {object} entities.HistorialAsignacionCamionResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/historial-asignacion/cerrar/chofer/{choferId} [put]
 func (ctr *CerrarAsignacionActivaChoferController) Run(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("choferId"))

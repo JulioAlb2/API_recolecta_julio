@@ -24,6 +24,7 @@ func NewDeleteRutaController(uc *application.DeleteRutaUseCase) *DeleteRutaContr
 // @Success      200 {object} entities.EstadoCamionMessageResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/rutas/{id} [delete]
 func (ctr *DeleteRutaController) Run(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))

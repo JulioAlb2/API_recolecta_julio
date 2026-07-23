@@ -37,7 +37,7 @@ func (pg *PostgresHistorialAsignacionCamion) Save(h *entities.HistorialAsignacio
 		created_at,
 		updated_at
 	)
-	VALUES ($1, $2, $3, $4, false, $5, NULL)
+	VALUES ($1, $2, $3, $4, false, $5, $5)
 	RETURNING id_historial
 	`
 
@@ -72,6 +72,7 @@ func (pg *PostgresHistorialAsignacionCamion) GetById(id int32) (*entities.Histor
 	WHERE id_historial = $1
 	`
 
+	var updatedAtNullable *time.Time
 	err := pg.conn.QueryRow(context.Background(), sql, id).Scan(
 		&h.IDHistorial,
 		&h.IDChofer,
@@ -80,8 +81,11 @@ func (pg *PostgresHistorialAsignacionCamion) GetById(id int32) (*entities.Histor
 		&h.FechaBaja,
 		&h.Eliminado,
 		&h.CreatedAt,
-		&h.UpdatedAt,
+		&updatedAtNullable,
 	)
+	if err == nil && updatedAtNullable != nil {
+		h.UpdatedAt = *updatedAtNullable
+	}
 
 	if err == pgx.ErrNoRows {
 		return nil, errors.New("historial no encontrado")
@@ -113,6 +117,7 @@ func (pg *PostgresHistorialAsignacionCamion) ListAll() ([]entities.HistorialAsig
 
 	for rows.Next() {
 		var h entities.HistorialAsignacionCamion
+		var updatedAtNullable *time.Time
 		err := rows.Scan(
 			&h.IDHistorial,
 			&h.IDChofer,
@@ -121,10 +126,13 @@ func (pg *PostgresHistorialAsignacionCamion) ListAll() ([]entities.HistorialAsig
 			&h.FechaBaja,
 			&h.Eliminado,
 			&h.CreatedAt,
-			&h.UpdatedAt,
+			&updatedAtNullable,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if updatedAtNullable != nil {
+			h.UpdatedAt = *updatedAtNullable
 		}
 		list = append(list, h)
 	}
@@ -248,10 +256,14 @@ func (pg *PostgresHistorialAsignacionCamion) CerrarAsignacionActivaChofer(chofer
 //
 func (pg *PostgresHistorialAsignacionCamion) fetchOne(sql string, param any) (*entities.HistorialAsignacionCamion, error) {
 	var h entities.HistorialAsignacionCamion
+	var updatedAtNullable *time.Time
 	err := pg.conn.QueryRow(context.Background(), sql, param).Scan(
 		&h.IDHistorial, &h.IDChofer, &h.IDCamion, &h.FechaAsignacion,
-		&h.FechaBaja, &h.Eliminado, &h.CreatedAt, &h.UpdatedAt,
+		&h.FechaBaja, &h.Eliminado, &h.CreatedAt, &updatedAtNullable,
 	)
+	if err == nil && updatedAtNullable != nil {
+		h.UpdatedAt = *updatedAtNullable
+	}
 	
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -273,12 +285,16 @@ func (pg *PostgresHistorialAsignacionCamion) fetchMany(sql string, param any) ([
 	var list []entities.HistorialAsignacionCamion
 	for rows.Next() {
 		var h entities.HistorialAsignacionCamion
+		var updatedAtNullable *time.Time
 		err := rows.Scan(
 			&h.IDHistorial, &h.IDChofer, &h.IDCamion, &h.FechaAsignacion,
-			&h.FechaBaja, &h.Eliminado, &h.CreatedAt, &h.UpdatedAt,
+			&h.FechaBaja, &h.Eliminado, &h.CreatedAt, &updatedAtNullable,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if updatedAtNullable != nil {
+			h.UpdatedAt = *updatedAtNullable
 		}
 		list = append(list, h)
 	}

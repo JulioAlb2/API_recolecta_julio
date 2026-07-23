@@ -17,20 +17,21 @@ func NewRedisNotificationRuleRepository(rdb *redis.Client) *RedisNotificationRul
 	return &RedisNotificationRuleRepository{rdb: rdb}
 }
 
-func ruleKey(code string) string {
-	return fmt.Sprintf("rules:state:%s", code)
+func ruleKey(tenantID int, code string) string {
+	return fmt.Sprintf("rules:state:%d:%s", tenantID, code)
 }
 
-func (r *RedisNotificationRuleRepository) Save(ctx context.Context, rule domain.NotificationRule) error {
+func (r *RedisNotificationRuleRepository) Save(ctx context.Context, tenantID int, rule domain.NotificationRule) error {
+	rule.TenantID = tenantID
 	data, err := json.Marshal(rule)
 	if err != nil {
 		return err
 	}
-	return r.rdb.Set(ctx, ruleKey(rule.StateCode), data, 0).Err()
+	return r.rdb.Set(ctx, ruleKey(tenantID, rule.StateCode), data, 0).Err()
 }
 
-func (r *RedisNotificationRuleRepository) GetByStateCode(ctx context.Context, code string) (*domain.NotificationRule, error) {
-	val, err := r.rdb.Get(ctx, ruleKey(code)).Result()
+func (r *RedisNotificationRuleRepository) GetByStateCode(ctx context.Context, tenantID int, code string) (*domain.NotificationRule, error) {
+	val, err := r.rdb.Get(ctx, ruleKey(tenantID, code)).Result()
 	if err == redis.Nil {
 		return nil, fmt.Errorf("rule not found: %s", code)
 	}
@@ -44,8 +45,8 @@ func (r *RedisNotificationRuleRepository) GetByStateCode(ctx context.Context, co
 	return &rule, nil
 }
 
-func (r *RedisNotificationRuleRepository) List(ctx context.Context) ([]domain.NotificationRule, error) {
-	keys, err := r.rdb.Keys(ctx, "rules:state:*").Result()
+func (r *RedisNotificationRuleRepository) List(ctx context.Context, tenantID int) ([]domain.NotificationRule, error) {
+	keys, err := r.rdb.Keys(ctx, fmt.Sprintf("rules:state:%d:*", tenantID)).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +65,6 @@ func (r *RedisNotificationRuleRepository) List(ctx context.Context) ([]domain.No
 	return rules, nil
 }
 
-func (r *RedisNotificationRuleRepository) Delete(ctx context.Context, code string) error {
-	return r.rdb.Del(ctx, ruleKey(code)).Err()
+func (r *RedisNotificationRuleRepository) Delete(ctx context.Context, tenantID int, code string) error {
+	return r.rdb.Del(ctx, ruleKey(tenantID, code)).Err()
 }

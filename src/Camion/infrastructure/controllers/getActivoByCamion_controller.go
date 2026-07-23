@@ -24,6 +24,7 @@ func NewGetActivoByCamionController(uc *application.GetActivoByCamionUseCase) *G
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/historial-asignacion/activo/camion/{camionId} [get]
 func (ctr *GetActivoByCamionController) Run(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("camionId"))

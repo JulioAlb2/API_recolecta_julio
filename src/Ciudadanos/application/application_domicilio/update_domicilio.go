@@ -48,12 +48,12 @@ func (uc *UpdateDomicilio) Execute(ctx context.Context, in UpdateDomicilioInput)
 			return errors.New("alias inválido")
 		}
 
-		existing, err := uc.repo.FindByAlias(ctx, alias)
+		existing, err := uc.repo.FindByAlias(ctx, alias, d.CiudadanoID)
 		if err != nil {
 			return err
 		}
 		if existing != nil && existing.ID != in.ID {
-			return errors.New("el alias del domicilio ya está registrado")
+			return errors.New("el alias del domicilio ya está registrado para este ciudadano")
 		}
 
 		d.Alias = alias

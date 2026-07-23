@@ -1,6 +1,33 @@
 \c proyecto_recolecta;
 
 -- =====================
+-- MULTITENANCY: INDICE EN tenant_id
+-- =====================
+-- Toda politica RLS (db_constraints.sql) agrega un filtro WHERE tenant_id = ...
+-- implicito a cada query sobre estas tablas -- sin indice, degrada el
+-- rendimiento a medida que crece el volumen de datos por tenant.
+
+DO $$
+DECLARE
+    tbl text;
+    tenant_tables text[] := ARRAY[
+        'empleado','licencia','dispositivos','historial_asignacion_camion','camion',
+        'alerta_mantenimiento','registro_mantenimiento','ruta_camion','ruta','punto_recoleccion',
+        'relleno_sanitario','estado_camion','registro_vaciado','colonia','ciudadano','domicilio',
+        'alerta_usuario','aviso','anomalia'
+    ];
+BEGIN
+    FOREACH tbl IN ARRAY tenant_tables LOOP
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes
+            WHERE indexname = 'idx_' || tbl || '_tenant_id'
+        ) THEN
+            EXECUTE format('CREATE INDEX %I ON %I(tenant_id)', 'idx_' || tbl || '_tenant_id', tbl);
+        END IF;
+    END LOOP;
+END $$;
+
+-- =====================
 -- INDEXES
 -- =====================
 
@@ -58,28 +85,28 @@ BEGIN
         SELECT 1 FROM pg_indexes
         WHERE indexname = 'idx_asignacion_camion'
     ) THEN
-        CREATE INDEX idx_asignacion_camion ON historial_asignacion(id_camion);
+        CREATE INDEX idx_asignacion_camion ON historial_asignacion_camion(id_camion);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes
         WHERE indexname = 'idx_fecha_asignacion_historial'
     ) THEN
-        CREATE INDEX idx_fecha_asignacion_historial ON historial_asignacion(fecha_asignacion);
+        CREATE INDEX idx_fecha_asignacion_historial ON historial_asignacion_camion(fecha_asignacion);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes
         WHERE indexname = 'idx_fecha_desasignacion_historial'
     ) THEN
-        CREATE INDEX idx_fecha_desasignacion_historial ON historial_asignacion(fecha_desasignacion);
+        CREATE INDEX idx_fecha_desasignacion_historial ON historial_asignacion_camion(fecha_baja);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes
         WHERE indexname = 'idx_registros_activos_historial'
     ) THEN
-        CREATE INDEX idx_registros_activos_historial ON historial_asignacion(deleted_at) WHERE deleted_at IS NULL;
+        CREATE INDEX idx_registros_activos_historial ON historial_asignacion_camion(eliminado) WHERE eliminado = false;
     END IF;
 END $$;
 
@@ -106,14 +133,14 @@ BEGIN
         SELECT 1 FROM pg_indexes
         WHERE indexname = 'idx_fecha_registro_mantencion'
     ) THEN
-        CREATE INDEX idx_fecha_registro_mantencion ON registro_mantenimiento(fecha);
+        CREATE INDEX idx_fecha_registro_mantencion ON registro_mantenimiento(fecha_realizada);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes
-        WHERE indexname = 'idx_tipo_mantencion_registro'
+        WHERE indexname = 'idx_alerta_registro_mantenimiento'
     ) THEN
-        CREATE INDEX idx_tipo_mantencion_registro ON registro_mantenimiento(tipo_id);
+        CREATE INDEX idx_alerta_registro_mantenimiento ON registro_mantenimiento(alerta_id);
     END IF;
 END $$;
 
@@ -123,14 +150,14 @@ BEGIN
         SELECT 1 FROM pg_indexes
         WHERE indexname = 'idx_ruta_asignacion'
     ) THEN
-        CREATE INDEX idx_ruta_asignacion ON registro_asignacion_ruta(ruta_id);
+        CREATE INDEX idx_ruta_asignacion ON ruta_camion(ruta_id);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes
         WHERE indexname = 'idx_fecha_asignacion_ruta'
     ) THEN
-        CREATE INDEX idx_fecha_asignacion_ruta ON registro_asignacion_ruta(fecha_asignacion);
+        CREATE INDEX idx_fecha_asignacion_ruta ON ruta_camion(fecha);
     END IF;
 END $$;
 
@@ -203,13 +230,6 @@ BEGIN
 
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes
-        WHERE indexname = 'idx_direccion_domicilio'
-    ) THEN
-        CREATE INDEX idx_direccion_domicilio ON domicilio(direccion);
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_indexes
         WHERE indexname = 'idx_colonia_id_domicilio'
     ) THEN
         CREATE INDEX idx_colonia_id_domicilio ON domicilio(colonia_id);
@@ -230,5 +250,71 @@ BEGIN
         WHERE indexname = 'idx_alias_ciudadano'
     ) THEN
         CREATE INDEX idx_alias_ciudadano ON ciudadano(alias);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_tipo_anomalia'
+    ) THEN
+        CREATE INDEX idx_tipo_anomalia ON anomalia(tipo_anomalia);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_estado_anomalia'
+    ) THEN
+        CREATE INDEX idx_estado_anomalia ON anomalia(estado);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_punto_id_anomalia'
+    ) THEN
+        CREATE INDEX idx_punto_id_anomalia ON anomalia(punto_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_conductor_id_anomalia'
+    ) THEN
+        CREATE INDEX idx_conductor_id_anomalia ON anomalia(conductor_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_camion_id_anomalia'
+    ) THEN
+        CREATE INDEX idx_camion_id_anomalia ON anomalia(camion_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_ruta_id_anomalia'
+    ) THEN
+        CREATE INDEX idx_ruta_id_anomalia ON anomalia(ruta_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_referencia_id_anomalia'
+    ) THEN
+        CREATE INDEX idx_referencia_id_anomalia ON anomalia(anomalia_referencia_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_fecha_reporte_anomalia'
+    ) THEN
+        CREATE INDEX idx_fecha_reporte_anomalia ON anomalia(fecha_reporte);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_registros_activos_anomalia'
+    ) THEN
+        CREATE INDEX idx_registros_activos_anomalia ON anomalia(eliminado) WHERE eliminado = false;
     END IF;
 END $$;

@@ -2,9 +2,8 @@ package core
 
 const (
 	ADMIN       = 1
-	CONDUCTOR   = 2
+	COORDINADOR = 2
 	SUPERVISOR  = 3
-	COORDINADOR = 4
-	
+	CONDUCTOR   = 4
 )
 

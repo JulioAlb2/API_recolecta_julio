@@ -48,17 +48,19 @@ func NewFCMClient(credentialsFile string) (*FCMClient, error) {
 	return &FCMClient{client: client}, nil
 }
 
+// fcmMaxTokensPerRequest is the hard limit enforced by FCM for a single
+// MulticastMessage. Requests with more tokens must be split into batches.
+const fcmMaxTokensPerRequest = 500
+
 func (c *FCMClient) Send(ctx context.Context, userTokens map[string]string, notification *domain.PushNotification) (map[string]domain.SendResult, error) {
+	if len(userTokens) == 0 {
+		return make(map[string]domain.SendResult), nil
+	}
 	userIDs := make([]string, 0, len(userTokens))
 	for userID := range userTokens {
 		userIDs = append(userIDs, userID)
 	}
 	sort.Strings(userIDs)
-
-	tokens := make([]string, 0, len(userIDs))
-	for _, userID := range userIDs {
-		tokens = append(tokens, userTokens[userID])
-	}
 
 	dataPayload := make(map[string]string, len(notification.Data)+1)
 	for key, value := range notification.Data {
@@ -68,36 +70,50 @@ func (c *FCMClient) Send(ctx context.Context, userTokens map[string]string, noti
 		dataPayload["notificationType"] = notification.Type
 	}
 
-	message := &messaging.MulticastMessage{
-		Tokens: tokens,
-		Notification: &messaging.Notification{
-			Title: notification.Title,
-			Body:  notification.Body,
-		},
-		Data: dataPayload,
-	}
-
-	batchResponse, err := c.client.SendEachForMulticast(ctx, message)
-	if err != nil {
-		return nil, err
-	}
-
 	results := make(map[string]domain.SendResult, len(userIDs))
-	for index, response := range batchResponse.Responses {
-		userID := userIDs[index]
-		if response.Success {
-			results[userID] = domain.SendResult{Success: true}
-			continue
+
+	for start := 0; start < len(userIDs); start += fcmMaxTokensPerRequest {
+		end := start + fcmMaxTokensPerRequest
+		if end > len(userIDs) {
+			end = len(userIDs)
+		}
+		batchUserIDs := userIDs[start:end]
+
+		tokens := make([]string, 0, len(batchUserIDs))
+		for _, userID := range batchUserIDs {
+			tokens = append(tokens, userTokens[userID])
 		}
 
-		errorMessage := "unknown error"
-		if response.Error != nil {
-			errorMessage = response.Error.Error()
+		message := &messaging.MulticastMessage{
+			Tokens: tokens,
+			Notification: &messaging.Notification{
+				Title: notification.Title,
+				Body:  notification.Body,
+			},
+			Data: dataPayload,
 		}
 
-		results[userID] = domain.SendResult{
-			Success: false,
-			Error:   errorMessage,
+		batchResponse, err := c.client.SendEachForMulticast(ctx, message)
+		if err != nil {
+			return nil, err
+		}
+
+		for index, response := range batchResponse.Responses {
+			userID := batchUserIDs[index]
+			if response.Success {
+				results[userID] = domain.SendResult{Success: true}
+				continue
+			}
+
+			errorMessage := "unknown error"
+			if response.Error != nil {
+				errorMessage = response.Error.Error()
+			}
+
+			results[userID] = domain.SendResult{
+				Success: false,
+				Error:   errorMessage,
+			}
 		}
 	}
 

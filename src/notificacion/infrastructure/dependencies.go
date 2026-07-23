@@ -12,17 +12,9 @@ func InitNotificacionDependencies() (
 	*CountNotificacionesByTipoController,
 	*CountNotificacionesByUsuarioIDController,
 	
-	// Controladores de Creación Específica
-	*CrearNotificacionEmergenciaController,
-	*CrearNotificacionFallaController,
-	*CrearNotificacionMantenimientoController,
-	*CreateNotificacionController,
-	
-	// Controladores CRUD Básicos
-	*DeleteNotificacionController,
+	// Controladores CRUD Básicos (Lectura)
 	*GetAllNotificacionesController,
 	*GetNotificacionByIdController,
-	*UpdateNotificacionController,
 	
 	// Controladores de Consultas Activas/Inactivas
 	*GetNotificacionesActivasByUsuarioIDController,
@@ -37,11 +29,6 @@ func InitNotificacionDependencies() (
 	*GetNotificacionesByUsuarioIDController,
 	*GetNotificacionesByUsuarioYTipoController,
 	
-	// Controladores por Relaciones
-	*GetNotificacionesByCreadoPorController,
-	*GetNotificacionesByFallaIDController,
-	*GetNotificacionesByMantenimientoIDController,
-	
 	// Controladores por Tipo y Rango
 	*GetNotificacionesByTipoController,
 	*GetNotificacionesByFechaRangeController,
@@ -54,13 +41,8 @@ func InitNotificacionDependencies() (
 	*MarcarNotificacionComoLeidaController,
 	*MarcarTodasNotificacionesComoLeidasController,
 	
-	// Controladores de Notificación (Actualizados)
-	*NotificarUsuarioController,
+	// Controladores de Notificación
 	*ObtenerNumeroNotificacionesNoLeidasController,
-	
-	// ========== NUEVOS CONTROLADORES ==========
-	*NotificarMultiplesUsuariosController,
-	*NotificarTodosUsuariosController,
 ) {
 	// Repositorio PostgreSQL
 	repo := NewPostgresNotificacionRepository()
@@ -71,17 +53,9 @@ func InitNotificacionDependencies() (
 	countByTipoUseCase := application.NewCountNotificacionesByTipoUseCase(repo)
 	countByUsuarioIDUseCase := application.NewCountNotificacionesByUsuarioIDUseCase(repo)
 	
-	// ================== CASOS DE USO DE CREACIÓN ==================
-	crearEmergenciaUseCase := application.NewCrearNotificacionEmergenciaUseCase(repo)
-	crearFallaUseCase := application.NewCrearNotificacionFallaUseCase(repo)
-	crearMantenimientoUseCase := application.NewCrearNotificacionMantenimientoUseCase(repo)
-	createNotificacionUseCase := application.NewCreateNotificacionUseCase(repo)
-	
-	// ================== CASOS DE USO CRUD BÁSICOS ==================
-	deleteNotificacionUseCase := application.NewDeleteNotificacionUseCase(repo)
+	// ================== CASOS DE USO CRUD BÁSICOS (LECTURA) ==================
 	getAllNotificacionesUseCase := application.NewGetAllNotificacionesUseCase(repo)
 	getNotificacionByIdUseCase := application.NewGetNotificacionByIdUseCase(repo)
-	updateNotificacionUseCase := application.NewUpdateNotificacionUseCase(repo)
 	
 	// ================== CASOS DE USO DE CONSULTAS ==================
 	getActivasByUsuarioIDUseCase := application.NewGetNotificacionesActivasByUsuarioIDUseCase(repo)
@@ -94,10 +68,6 @@ func InitNotificacionDependencies() (
 	getByUsuarioIDUseCase := application.NewGetNotificacionesByUsuarioIDUseCase(repo)
 	getByUsuarioYTipoUseCase := application.NewGetNotificacionesByUsuarioYTipoUseCase(repo)
 	
-	getByCreadoPorUseCase := application.NewGetNotificacionesByCreadoPorUseCase(repo)
-	getByFallaIDUseCase := application.NewGetNotificacionesByFallaIDUseCase(repo)
-	getByMantenimientoIDUseCase := application.NewGetNotificacionesByMantenimientoIDUseCase(repo)
-	
 	getByTipoUseCase := application.NewGetNotificacionesByTipoUseCase(repo)
 	getByFechaRangeUseCase := application.NewGetNotificacionesByFechaRangeUseCase(repo)
 	
@@ -109,12 +79,7 @@ func InitNotificacionDependencies() (
 	marcarTodasComoLeidasUseCase := application.NewMarcarTodasNotificacionesComoLeidasUseCase(repo)
 	
 	// ================== CASOS DE USO DE NOTIFICACIÓN ==================
-	notificarUsuarioUseCase := application.NewNotificarUsuarioUseCase(repo)
 	obtenerNoLeidasUseCase := application.NewObtenerNumeroNotificacionesNoLeidasUseCase(repo)
-	
-	// ================== NUEVOS CASOS DE USO ==================
-	notificarMultiplesUseCase := application.NewNotificarMultiplesUsuariosUseCase(repo)
-	notificarTodosUseCase := application.NewNotificarTodosUsuariosUseCase(repo)
 
 	// ================== CONTROLADORES DE CONTEO ==================
 	countActivasByUsuarioIDController := NewCountNotificacionesActivasByUsuarioIDController(countActivasByUsuarioIDUseCase)
@@ -122,17 +87,9 @@ func InitNotificacionDependencies() (
 	countByTipoController := NewCountNotificacionesByTipoController(countByTipoUseCase)
 	countByUsuarioIDController := NewCountNotificacionesByUsuarioIDController(countByUsuarioIDUseCase)
 	
-	// ================== CONTROLADORES DE CREACIÓN ==================
-	crearEmergenciaController := NewCrearNotificacionEmergenciaController(crearEmergenciaUseCase)
-	crearFallaController := NewCrearNotificacionFallaController(crearFallaUseCase)
-	crearMantenimientoController := NewCrearNotificacionMantenimientoController(crearMantenimientoUseCase)
-	createNotificacionController := NewCreateNotificacionController(createNotificacionUseCase)
-	
-	// ================== CONTROLADORES CRUD BÁSICOS ==================
-	deleteNotificacionController := NewDeleteNotificacionController(deleteNotificacionUseCase)
+	// ================== CONTROLADORES CRUD BÁSICOS (LECTURA) ==================
 	getAllNotificacionesController := NewGetAllNotificacionesController(getAllNotificacionesUseCase)
 	getNotificacionByIdController := NewGetNotificacionByIdController(getNotificacionByIdUseCase)
-	updateNotificacionController := NewUpdateNotificacionController(updateNotificacionUseCase)
 	
 	// ================== CONTROLADORES DE CONSULTAS ACTIVAS/INACTIVAS ==================
 	getActivasByUsuarioIDController := NewGetNotificacionesActivasByUsuarioIDController(getActivasByUsuarioIDUseCase)
@@ -147,11 +104,6 @@ func InitNotificacionDependencies() (
 	getByUsuarioIDController := NewGetNotificacionesByUsuarioIDController(getByUsuarioIDUseCase)
 	getByUsuarioYTipoController := NewGetNotificacionesByUsuarioYTipoController(getByUsuarioYTipoUseCase)
 	
-	// ================== CONTROLADORES POR RELACIONES ==================
-	getByCreadoPorController := NewGetNotificacionesByCreadoPorController(getByCreadoPorUseCase)
-	getByFallaIDController := NewGetNotificacionesByFallaIDController(getByFallaIDUseCase)
-	getByMantenimientoIDController := NewGetNotificacionesByMantenimientoIDController(getByMantenimientoIDUseCase)
-	
 	// ================== CONTROLADORES POR TIPO Y RANGO ==================
 	getByTipoController := NewGetNotificacionesByTipoController(getByTipoUseCase)
 	getByFechaRangeController := NewGetNotificacionesByFechaRangeController(getByFechaRangeUseCase)
@@ -165,27 +117,15 @@ func InitNotificacionDependencies() (
 	marcarTodasComoLeidasController := NewMarcarTodasNotificacionesComoLeidasController(marcarTodasComoLeidasUseCase)
 	
 	// ================== CONTROLADORES DE NOTIFICACIÓN ==================
-	notificarUsuarioController := NewNotificarUsuarioController(notificarUsuarioUseCase)
 	obtenerNoLeidasController := NewObtenerNumeroNotificacionesNoLeidasController(obtenerNoLeidasUseCase)
 	
-	// ================== NUEVOS CONTROLADORES ==================
-	notificarMultiplesController := NewNotificarMultiplesUsuariosController(notificarMultiplesUseCase)
-	notificarTodosController := NewNotificarTodosUsuariosController(notificarTodosUseCase)
-
 	return countActivasByUsuarioIDController,
 	       countByCamionIDController,
 	       countByTipoController,
 	       countByUsuarioIDController,
 	       
-	       crearEmergenciaController,
-	       crearFallaController,
-	       crearMantenimientoController,
-	       createNotificacionController,
-	       
-	       deleteNotificacionController,
 	       getAllNotificacionesController,
 	       getNotificacionByIdController,
-	       updateNotificacionController,
 	       
 	       getActivasByUsuarioIDController,
 	       getActivasController,
@@ -197,10 +137,6 @@ func InitNotificacionDependencies() (
 	       getByUsuarioIDController,
 	       getByUsuarioYTipoController,
 	       
-	       getByCreadoPorController,
-	       getByFallaIDController,
-	       getByMantenimientoIDController,
-	       
 	       getByTipoController,
 	       getByFechaRangeController,
 	       
@@ -210,9 +146,5 @@ func InitNotificacionDependencies() (
 	       marcarComoLeidaController,
 	       marcarTodasComoLeidasController,
 	       
-	       notificarUsuarioController,
-	       obtenerNoLeidasController,
-	       
-	       notificarMultiplesController,
-	       notificarTodosController
+	       obtenerNoLeidasController
 }

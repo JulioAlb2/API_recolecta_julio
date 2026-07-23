@@ -22,6 +22,7 @@ func NewCountNotificacionesActivasByUsuarioIDController(useCase *application.Cou
 // @Produce      json
 // @Success      200 {object} entities.NotificacionListResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/notificaciones/count/activas/usuario/{usuario_id} [get]
 func (ctrl *CountNotificacionesActivasByUsuarioIDController) Run(c *gin.Context) {
 	usuarioIDParam := c.Param("usuario_id")

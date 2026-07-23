@@ -14,6 +14,6 @@ func NewGetAnomaliasByTipoAnomaliaUseCase(repo repositories.IAnomalia) *GetAnoma
 	return &GetAnomaliasByTipoAnomaliaUseCase{repo: repo}
 }
 
-func (uc *GetAnomaliasByTipoAnomaliaUseCase) Run(tipoAnomalia string) ([]entities.Anomalia, error) {
+func (uc *GetAnomaliasByTipoAnomaliaUseCase) Run(tipoAnomalia entities.TipoAnomalia) ([]entities.Anomalia, error) {
 	return uc.repo.GetByTipoAnomalia(tipoAnomalia)
 }

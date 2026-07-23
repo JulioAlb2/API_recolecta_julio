@@ -26,6 +26,7 @@ func NewCreateEstadoCamionController(
 // @Param        body body entities.CreateEstadoCamionRequest true "Body"
 // @Success      201 {object} entities.EstadoCamionResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/estado-camion/ [post]
 func (ctr *CreateEstadoCamionController) Run(ctx *gin.Context) {
 	var estadoCamion entities.EstadoCamion

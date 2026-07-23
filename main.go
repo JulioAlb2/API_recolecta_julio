@@ -8,6 +8,14 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// @title                      API Recolecta
+// @version                    1.0
+// @description                API para gestión de recolección de residuos
+// @BasePath                   /
+// @securityDefinitions.apikey BearerAuth
+// @in                         header
+// @name                       Authorization
+// @description                Escribe 'Bearer ' seguido de tu token JWT. Ejemplo: "Bearer eyJhbG..."
 func main() {
 	_ = godotenv.Load()
 

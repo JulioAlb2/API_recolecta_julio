@@ -25,6 +25,7 @@ func NewGetAnomaliasByPuntoIDController(getByPuntoIDUseCase *application.GetAnom
 // @Produce      json
 // @Success      200 {object} entities.AnomaliaResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/anomalias/punto/{puntoId} [get]
 func (ctrl *GetAnomaliasByPuntoIDController) Run(c *gin.Context) {
 	puntoIDParam := c.Param("puntoId")

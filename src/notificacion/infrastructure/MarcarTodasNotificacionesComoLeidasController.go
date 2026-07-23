@@ -22,6 +22,7 @@ func NewMarcarTodasNotificacionesComoLeidasController(useCase *application.Marca
 // @Produce      json
 // @Success      200 {object} entities.NotificacionResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/notificaciones/usuario/{usuario_id}/marcar-todas-leidas [patch]
 func (ctrl *MarcarTodasNotificacionesComoLeidasController) Run(c *gin.Context) {
 	usuarioIDParam := c.Param("usuario_id")

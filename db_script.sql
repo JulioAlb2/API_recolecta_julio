@@ -19,6 +19,26 @@ BEGIN
 END $$;
 
 -- =====================
+-- MULTITENANCY: TENANT
+-- =====================
+-- Modelo Pool: una sola base compartida, particionada por tenant_id. Ver
+-- docs/07-plan-multitenancy.md. tenant_id=1 es el tenant de respaldo/legacy
+-- al que caen los datos existentes y cualquier módulo aún no migrado.
+
+CREATE TABLE IF NOT EXISTS tenant (
+  tenant_id SERIAL PRIMARY KEY,
+  nombre VARCHAR(150) NOT NULL,
+  activo BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+INSERT INTO tenant (tenant_id, nombre, activo)
+VALUES (1, 'Tenant Demo/Legacy', TRUE)
+ON CONFLICT (tenant_id) DO NOTHING;
+
+SELECT setval('tenant_tenant_id_seq', GREATEST((SELECT MAX(tenant_id) FROM tenant), 1));
+
+-- =====================
 -- DOMINIO EMPLEADO
 -- =====================
 
@@ -30,6 +50,7 @@ CREATE TABLE IF NOT EXISTS rol (
 
 CREATE TABLE IF NOT EXISTS empleado (
     id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL DEFAULT 1,
     nombre VARCHAR(100) NOT NULL,
     apellidos VARCHAR(100) NOT NULL,
     mail VARCHAR(100) NOT NULL,
@@ -44,12 +65,32 @@ CREATE TABLE IF NOT EXISTS empleado (
 
 CREATE TABLE IF NOT EXISTS licencia (
   id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   licencia VARCHAR(100) NOT NULL,
   tipo_licencia SMALLINT NOT NULL,
   fecha_vencimiento DATE NOT NULL,
   id_empleado INTEGER NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================
+-- DOMINIO DISPOSITIVOS
+-- =====================
+
+CREATE TABLE IF NOT EXISTS dispositivos (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
+  conductor_id INTEGER NOT NULL UNIQUE,
+  mac_address VARCHAR(100) NOT NULL UNIQUE,
+  serial_number VARCHAR(100) NOT NULL UNIQUE,
+  api_key VARCHAR(255) NOT NULL UNIQUE,
+  nombre_dispositivo VARCHAR(100) NULL,
+  sistema_operativo VARCHAR(50) DEFAULT 'Android',
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP DEFAULT NULL
 );
 
 -- =====================
@@ -60,25 +101,29 @@ CREATE TABLE IF NOT EXISTS licencia (
 -- CONTEXT BOUNDARY ASIGNACION
 -- =====================
 
-CREATE TABLE IF NOT EXISTS historial_asignacion (
-  id SERIAL PRIMARY KEY,
-  id_empleado INTEGER NOT NULL,
+CREATE TABLE IF NOT EXISTS historial_asignacion_camion (
+  id_historial SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
+  id_chofer INTEGER NOT NULL,
   id_camion INTEGER NOT NULL,
   fecha_asignacion DATE NOT NULL,
   fecha_baja DATE DEFAULT NULL,
+  eliminado BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS tipo_camion (
-  id SMALLINT PRIMARY KEY,
+  tipo_camion_id SERIAL PRIMARY KEY,
   nombre VARCHAR(50) NOT NULL,
-  descripcion VARCHAR(255) NULL
+  descripcion VARCHAR(255) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS camion (
   id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   placa VARCHAR(20) NOT NULL,
   modelo VARCHAR(50) NOT NULL,
   rentado BOOLEAN DEFAULT FALSE,
@@ -89,23 +134,39 @@ CREATE TABLE IF NOT EXISTS camion (
   deleted_at TIMESTAMP DEFAULT NULL
 );
 
-CREATE TABLE IF NOT EXISTS registro_mantenimiento (
-  id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS tipo_mantenimiento (
+  tipo_mantenimiento_id SERIAL PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL,
+  categoria VARCHAR(50) NOT NULL,
+  eliminado BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS alerta_mantenimiento (
+  alerta_id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   camion_id INTEGER NOT NULL,
-  tipo_mantenimiento SMALLINT NOT NULL,
-  fecha_reporte DATE NOT NULL,
-  kilometraje INTEGER NOT NULL,
-  observaciones VARCHAR(255) NULL,
+  tipo_mantenimiento_id INTEGER NOT NULL,
+  descripcion TEXT NOT NULL,
+  observaciones TEXT NULL,
+  atendido BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP DEFAULT NULL
 );
 
-CREATE TABLE IF NOT EXISTS tipo_mantenimiento (
-  id SMALLINT PRIMARY KEY,
-  nombre VARCHAR(50) NOT NULL,
-  categoria VARCHAR(50) NOT NULL,
-  desactivado BOOLEAN DEFAULT FALSE
+CREATE TABLE IF NOT EXISTS registro_mantenimiento (
+  registro_id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
+  alerta_id INTEGER DEFAULT NULL,
+  camion_id INTEGER NOT NULL,
+  coordinador_id INTEGER NOT NULL,
+  mecanico_responsable VARCHAR(100) NOT NULL,
+  fecha_realizada TIMESTAMP NOT NULL,
+  kilometraje_mantenimiento INTEGER NOT NULL,
+  observaciones TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP DEFAULT NULL
 );
 
 -- =====================
@@ -116,12 +177,13 @@ CREATE TABLE IF NOT EXISTS tipo_mantenimiento (
 -- BOUNDARY ASIGNACION RUTA
 -- =====================
 
-CREATE TABLE IF NOT EXISTS registro_asignacion_ruta (
-  id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS ruta_camion (
+  ruta_camion_id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   ruta_id INTEGER NOT NULL,
-  status SMALLINT NOT NULL, -- 0: Inactiva, 1: Activa
-  camion_id INTEGER NOT NULL, -- Falta un estado de asignación para saber si está activo o no
-  fecha_asignacion DATE NOT NULL,
+  camion_id INTEGER NOT NULL,
+  fecha DATE NOT NULL,
+  eliminado BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP DEFAULT NULL
@@ -129,6 +191,7 @@ CREATE TABLE IF NOT EXISTS registro_asignacion_ruta (
 
 CREATE TABLE IF NOT EXISTS ruta (
   id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   nombre VARCHAR(100) NOT NULL,
   descripcion VARCHAR(255) NOT NULL,
   colonia_id INTEGER NOT NULL,
@@ -140,11 +203,45 @@ CREATE TABLE IF NOT EXISTS ruta (
 
 CREATE TABLE IF NOT EXISTS punto_recoleccion (
   id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   ruta_id INTEGER NOT NULL,
   direccion VARCHAR(255) NOT NULL,
+  orden DOUBLE PRECISION DEFAULT 0.0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS relleno_sanitario (
+  relleno_id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
+  nombre VARCHAR(100) NOT NULL,
+  direccion VARCHAR(255) NOT NULL,
+  es_rentado BOOLEAN DEFAULT FALSE,
+  capacidad_toneladas DOUBLE PRECISION NOT NULL,
+  eliminado BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS estado_camion (
+  estado_id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
+  camion_id INTEGER NOT NULL,
+  estado VARCHAR(50) NOT NULL,
+  observaciones TEXT NULL,
+  timestamp TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS registro_vaciado (
+  vaciado_id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
+  relleno_id INTEGER NOT NULL,
+  ruta_camion_id INTEGER NOT NULL,
+  hora TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 -- =====================
@@ -152,7 +249,8 @@ CREATE TABLE IF NOT EXISTS punto_recoleccion (
 -- =====================
 
 CREATE TABLE IF NOT EXISTS colonia (
-  id SERIAL PRIMARY KEY,
+  colonia_id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   nombre VARCHAR(100) NOT NULL,
   zona VARCHAR(50) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -164,6 +262,7 @@ CREATE TABLE IF NOT EXISTS colonia (
 
 CREATE TABLE IF NOT EXISTS ciudadano (
   id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   email VARCHAR(100) NOT NULL,
   alias VARCHAR(100) NOT NULL,
   password VARCHAR(100) NOT NULL,
@@ -173,8 +272,11 @@ CREATE TABLE IF NOT EXISTS ciudadano (
 
 CREATE TABLE IF NOT EXISTS domicilio (
   id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   alias VARCHAR(100) NOT NULL,
-  direccion VARCHAR(255) NOT NULL,
+  calle VARCHAR(100) NOT NULL,
+  numero VARCHAR(20) NOT NULL,
+  referencia VARCHAR(255) DEFAULT NULL,
   ciudadano_id INTEGER NOT NULL,
   colonia_id INTEGER NOT NULL,
   deleted_at TIMESTAMP DEFAULT NULL,
@@ -185,8 +287,20 @@ CREATE TABLE IF NOT EXISTS domicilio (
 -- DOMINIO NOTIFICACIÓN
 -- =====================
 
+CREATE TABLE IF NOT EXISTS alerta_usuario (
+  alerta_id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
+  usuario_id INTEGER NOT NULL,
+  titulo VARCHAR(150) NOT NULL,
+  mensaje TEXT NOT NULL,
+  leida BOOLEAN DEFAULT FALSE NOT NULL,
+  creado_por INTEGER NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS aviso (
   id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
   enviado_por INTEGER NOT NULL,
   tipo_aviso VARCHAR(50) NOT NULL,
   descripcion VARCHAR(255) NOT NULL,
@@ -195,6 +309,58 @@ CREATE TABLE IF NOT EXISTS aviso (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP DEFAULT NULL
+);
+
+-- =====================
+-- DOMINIO FALLAS (ANOMALIA)
+-- =====================
+
+-- Tabla unificada que reemplaza a Anomalia, Incidencia, ReporteConductor,
+-- ReporteFallaCritica y SeguimientoFallaCritica. El campo tipo_anomalia
+-- indica cuál de esos conceptos representa cada registro.
+-- SeguimientoFallaCritica usa anomalia_referencia_id (auto-relación) para
+-- apuntar al anomalia_id del REPORTE_FALLA_CRITICA al que da seguimiento.
+
+-- Enum nativo de Postgres: único conjunto de valores válidos para
+-- tipo_anomalia (equivalente al enum TipoAnomalia en Go).
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_anomalia_enum') THEN
+        CREATE TYPE tipo_anomalia_enum AS ENUM (
+            'ANOMALIA',
+            'INCIDENCIA',
+            'REPORTE_CONDUCTOR',
+            'REPORTE_FALLA_CRITICA',
+            'SEGUIMIENTO_FALLA_CRITICA'
+        );
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS anomalia (
+  anomalia_id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL DEFAULT 1,
+  tipo_anomalia tipo_anomalia_enum NOT NULL,
+  punto_id INTEGER DEFAULT NULL,
+  conductor_id INTEGER DEFAULT NULL,
+  camion_id INTEGER DEFAULT NULL,
+  ruta_id INTEGER DEFAULT NULL,
+  anomalia_referencia_id INTEGER DEFAULT NULL,
+  descripcion TEXT NOT NULL,
+  json_ruta TEXT DEFAULT NULL,
+  estado VARCHAR(30) DEFAULT NULL,
+  eliminado BOOLEAN DEFAULT FALSE,
+  fecha_reporte TIMESTAMP NOT NULL,
+  fecha_resolucion TIMESTAMP DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  -- Pipeline modelo_reportes -> clasificador_reportes (ver migrations/2026-07-22_pipeline_reportes_anomalia.sql)
+  estado_pipeline VARCHAR(30) NOT NULL DEFAULT 'pendiente',
+  nivel_riesgo VARCHAR(20) DEFAULT NULL,
+  inferencia_id INTEGER DEFAULT NULL,
+  categoria_clasificada VARCHAR(50) DEFAULT NULL,
+  subtipo_clasificado VARCHAR(50) DEFAULT NULL,
+  accion_sugerida VARCHAR(50) DEFAULT NULL,
+  pipeline_error TEXT DEFAULT NULL
 );
 
 -- =====================

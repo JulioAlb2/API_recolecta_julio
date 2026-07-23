@@ -28,6 +28,18 @@ func NewColoniaController(
 	return &ColoniaController{create, get, list, update, delete}
 }
 
+// tenantIDFromContext lee el tenant_id que el middleware JWT ya dejo en el
+// contexto de Gin. Solo se usa en rutas ya protegidas con JWTAuthMiddleware;
+// el chequeo aqui es una garantia extra de que nunca se escribe sin tenant.
+func tenantIDFromContext(ctx *gin.Context) (int, bool) {
+	val, exists := ctx.Get("tenant_id")
+	if !exists {
+		return 0, false
+	}
+	tenantID, ok := val.(int)
+	return tenantID, ok
+}
+
 func (c *ColoniaController) RegisterRoutes(r *gin.Engine) {
 
 	public := r.Group("/api/colonia")
@@ -54,7 +66,7 @@ func (c *ColoniaController) RegisterRoutes(r *gin.Engine) {
 // @Tags         Colonia
 // @Accept       json
 // @Produce      json
-// @Security     Bearer
+// @Security     BearerAuth
 // @Param        body body domain.CreateColoniaRequest true "Body"
 // @Success      201 {object} domain.ColoniaResponse
 // @Failure      400 {object} core.ErrorResponse "Datos inválidos"
@@ -63,6 +75,12 @@ func (c *ColoniaController) RegisterRoutes(r *gin.Engine) {
 // @Failure      500 {object} core.ErrorResponse "Error interno del servidor"
 // @Router       /api/colonia [post]
 func (c *ColoniaController) Create(ctx *gin.Context) {
+	tenantID, ok := tenantIDFromContext(ctx)
+	if !ok {
+		core.RespondError(ctx, http.StatusUnauthorized, core.ErrCodeUnauthorized, "tenant no encontrado en token", nil)
+		return
+	}
+
 	var request domain.CreateColoniaRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		core.RespondValidationError(ctx, "Datos de colonia inválidos", map[string]string{"error": err.Error()})
@@ -74,7 +92,7 @@ func (c *ColoniaController) Create(ctx *gin.Context) {
 		Zona:   request.Zona,
 	}
 
-	if err := c.create.Execute(&body); err != nil {
+	if err := c.create.Execute(ctx.Request.Context(), tenantID, &body); err != nil {
 		core.RespondInternalServerError(ctx, "Error al crear colonia", err)
 		return
 	}
@@ -96,6 +114,7 @@ func (c *ColoniaController) Create(ctx *gin.Context) {
 // @Failure      400 {object} core.ErrorResponse "ID inválido"
 // @Failure      404 {object} core.ErrorResponse "Colonia no encontrada"
 // @Failure      500 {object} core.ErrorResponse "Error interno del servidor"
+// @Security     BearerAuth
 // @Router       /api/colonia/{id} [get]
 func (c *ColoniaController) GetByID(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
@@ -124,6 +143,7 @@ func (c *ColoniaController) GetByID(ctx *gin.Context) {
 // @Produce      json
 // @Success      200 {object} domain.ColoniaResponse
 // @Failure      500 {object} core.ErrorResponse "Error interno del servidor"
+// @Security     BearerAuth
 // @Router       /api/colonia [get]
 func (c *ColoniaController) List(ctx *gin.Context) {
 	colonias, err := c.list.Execute()
@@ -145,7 +165,7 @@ func (c *ColoniaController) List(ctx *gin.Context) {
 // @Tags         Colonia
 // @Accept       json
 // @Produce      json
-// @Security     Bearer
+// @Security     BearerAuth
 // @Param        id path int true "ID de la colonia"
 // @Param        body body domain.CreateColoniaRequest true "Body"
 // @Success      200 {object} domain.ColoniaResponse
@@ -155,6 +175,12 @@ func (c *ColoniaController) List(ctx *gin.Context) {
 // @Failure      500 {object} core.ErrorResponse "Error interno del servidor"
 // @Router       /api/colonia/{id} [put]
 func (c *ColoniaController) Update(ctx *gin.Context) {
+	tenantID, ok := tenantIDFromContext(ctx)
+	if !ok {
+		core.RespondError(ctx, http.StatusUnauthorized, core.ErrCodeUnauthorized, "tenant no encontrado en token", nil)
+		return
+	}
+
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		core.RespondInvalidInput(ctx, "ID de colonia inválido")
@@ -173,7 +199,7 @@ func (c *ColoniaController) Update(ctx *gin.Context) {
 		Zona:      request.Zona,
 	}
 
-	if err := c.update.Execute(&body); err != nil {
+	if err := c.update.Execute(ctx.Request.Context(), tenantID, &body); err != nil {
 		core.RespondInternalServerError(ctx, "Error al actualizar colonia", err)
 		return
 	}
@@ -189,7 +215,7 @@ func (c *ColoniaController) Update(ctx *gin.Context) {
 // @Description  Elimina una colonia de la base de datos. Solo administradores (rol ADMIN)
 // @Tags         Colonia
 // @Produce      json
-// @Security     Bearer
+// @Security     BearerAuth
 // @Param        id path int true "ID de la colonia"
 // @Success      204 "Colonia eliminada correctamente"
 // @Failure      400 {object} core.ErrorResponse "ID inválido"
@@ -198,13 +224,19 @@ func (c *ColoniaController) Update(ctx *gin.Context) {
 // @Failure      500 {object} core.ErrorResponse "Error interno del servidor"
 // @Router       /api/colonia/{id} [delete]
 func (c *ColoniaController) Delete(ctx *gin.Context) {
+	tenantID, ok := tenantIDFromContext(ctx)
+	if !ok {
+		core.RespondError(ctx, http.StatusUnauthorized, core.ErrCodeUnauthorized, "tenant no encontrado en token", nil)
+		return
+	}
+
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		core.RespondInvalidInput(ctx, "ID de colonia inválido")
 		return
 	}
 
-	if err := c.delete.Execute(id); err != nil {
+	if err := c.delete.Execute(ctx.Request.Context(), tenantID, id); err != nil {
 		core.RespondInternalServerError(ctx, "Error al eliminar colonia", err)
 		return
 	}

@@ -6,9 +6,6 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	_ "github.com/vicpoo/API_recolecta/docs"
-	alertaApplication "github.com/vicpoo/API_recolecta/src/alerta_usuario/application"
-	alertaHttp "github.com/vicpoo/API_recolecta/src/alerta_usuario/infrastructure/http"
-	alertaPostgres "github.com/vicpoo/API_recolecta/src/alerta_usuario/infrastructure/postgres"
 	historialUseCases "github.com/vicpoo/API_recolecta/src/Camion/application"
 	rutaCamionApp "github.com/vicpoo/API_recolecta/src/Camion/application"
 	tipoCamionUseCases "github.com/vicpoo/API_recolecta/src/Camion/application"
@@ -45,25 +42,26 @@ import (
 	registroVaciadoRoutesPkg "github.com/vicpoo/API_recolecta/src/Rutas/infraestructure/routes"
 	rsRoutes "github.com/vicpoo/API_recolecta/src/Rutas/infraestructure/routes"
 	rutaRoutes "github.com/vicpoo/API_recolecta/src/Rutas/infraestructure/routes"
+	recorridoRoutesPkg "github.com/vicpoo/API_recolecta/src/Rutas/infraestructure/routes"
+	recorridoApp "github.com/vicpoo/API_recolecta/src/Rutas/application/recorrido"
+	alertaApplication "github.com/vicpoo/API_recolecta/src/alerta_usuario/application"
+	alertaHttp "github.com/vicpoo/API_recolecta/src/alerta_usuario/infrastructure/http"
+	alertaPostgres "github.com/vicpoo/API_recolecta/src/alerta_usuario/infrastructure/postgres"
 	"github.com/vicpoo/API_recolecta/src/core"
 
 	ciudadanosInfra "github.com/vicpoo/API_recolecta/src/Ciudadanos/infrastructure"
 	ciudadanosRoutes "github.com/vicpoo/API_recolecta/src/Ciudadanos/infrastructure/routes"
 	anomalia "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
-	incidencia "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
-	reporteConductor "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
-	reporteFallaCritica "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
-	seguimientoFallaCritica "github.com/vicpoo/API_recolecta/src/Fallas/infrastructure"
-	alertaMantenimiento "github.com/vicpoo/API_recolecta/src/Mantenimiento/infrastructure"
-	registroMantenimiento "github.com/vicpoo/API_recolecta/src/Mantenimiento/infrastructure"
-	reporteMantenimientoGenerado "github.com/vicpoo/API_recolecta/src/Mantenimiento/infrastructure"
-	tipoMantenimiento "github.com/vicpoo/API_recolecta/src/Mantenimiento/infrastructure"
+	dispositivoInfra "github.com/vicpoo/API_recolecta/src/dispositivo/infrastructure"
+	dispositivoRoutes "github.com/vicpoo/API_recolecta/src/dispositivo/infrastructure/routes"
 	coloniaApplication "github.com/vicpoo/API_recolecta/src/colonia/application"
 	coloniaHttp "github.com/vicpoo/API_recolecta/src/colonia/infrastructure/http"
 	coloniaPostgres "github.com/vicpoo/API_recolecta/src/colonia/infrastructure/postgres"
 	empleadoInfra "github.com/vicpoo/API_recolecta/src/empleado/infrastructure"
 	empleadoRoutes "github.com/vicpoo/API_recolecta/src/empleado/infrastructure/routes"
-	_ "github.com/vicpoo/API_recolecta/src/notificacion/infrastructure"
+	notificacionInfra "github.com/vicpoo/API_recolecta/src/notificacion/infrastructure"
+	"github.com/vicpoo/API_recolecta/src/tracking_ws"
+	appConfig "github.com/vicpoo/API_recolecta/config"
 	//rolInfra "github.com/vicpoo/API_recolecta/src/rol/infrastructure"
 	//listMisAlertasUC "github.com/vicpoo/API_recolecta/src/alerta_usuario/application"
 	//marcarLeidaUC "github.com/vicpoo/API_recolecta/src/alerta_usuario/application"
@@ -74,12 +72,6 @@ import (
 )
 
 // archivo para hacer las instancias de los controllers, casos de uso y repositories, etc.
-// @title           API Recolecta
-// @version         1.0
-// @description     API para gestión de recolección de residuos
-// @host            localhost:8080
-// @BasePath        /
-// @schemes         http
 func InitDependencies() {
 	// En producción las variables vienen inyectadas por Docker; .env es opcional.
 	_ = godotenv.Load()
@@ -89,6 +81,19 @@ func InitDependencies() {
 	engine.GET("/api/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	db := core.GetBD()
+
+	alertaRepository := alertaPostgres.NewPostgresAlertaRepository(db)
+
+	cfg, err := appConfig.LoadConfig()
+	if err != nil {
+		panic(err)
+	}
+	fcmClient, err := notificacionInfra.NewFCMClient(cfg.FCMCredentialsFile)
+	if err != nil {
+		panic(err)
+	}
+	redisClient := core.GetRedis()
+	rulesRepo := notificacionInfra.NewRedisNotificationRuleRepository(redisClient)
 
 	//tipo camion
 	tipoCamionRepository := tipoCamionAdapters.NewPostgresTipoCamion()
@@ -109,6 +114,7 @@ func InitDependencies() {
 		getTipoCamionByNameCtr,
 		deleteTipoCamionByIdCtr,
 	)
+
 	tipoCamionRoutes.Run()
 
 	//camion
@@ -129,6 +135,10 @@ func InitDependencies() {
 	getCamionByPlacaCtr := camionControllers.NewGetCamionByPlacaController(getCamionByPlacaUc)
 	getCamionByModeloCtr := camionControllers.NewGetCamionByModeloController(getCamionByModeloUc)
 
+	// Usecase y controlador de Telemetría
+	processTelemetryUC := rutaCamionApp.NewProcessTruckTelemetryUseCase(redisClient, alertaRepository)
+	telemetryController := camionControllers.NewProcessTelemetryController(processTelemetryUC)
+
 	camionRoutes := camionRoutes.NewCamionRoutes(
 		engine, createCamionCtr,
 		getAllCamionCtr,
@@ -137,6 +147,7 @@ func InitDependencies() {
 		deleteCamionByIdCtr,
 		getCamionByPlacaCtr,
 		getCamionByModeloCtr,
+		telemetryController,
 	)
 	camionRoutes.Run()
 
@@ -239,6 +250,9 @@ func InitDependencies() {
 	deleteRutaCtr := rutaControllers.NewDeleteRutaController(deleteRutaUc)
 	getRutasActivasCtr := rutaControllers.NewGetRutaActivasController(getRutasActivasUc)
 
+	processArrivalUC := camionUseCases.NewProcessTruckArrivalUseCase(redisClient, rulesRepo, fcmClient)
+	arrivalController := rutaControllers.NewProcessArrivalController(processArrivalUC)
+
 	rutaRoutes := rutaRoutes.NewRutaRoutes(
 		engine,
 		createRutaCtr,
@@ -247,9 +261,15 @@ func InitDependencies() {
 		updateRutaCtr,
 		deleteRutaCtr,
 		getRutasActivasCtr,
+		arrivalController,
 	)
 
 	rutaRoutes.Run()
+
+	recorridoStore := recorridoApp.NewRedisStore(redisClient)
+	recorridoCtr := rutaControllers.NewRecorridoController(recorridoStore)
+	recorridoRoutes := recorridoRoutesPkg.NewRecorridoRoutes(engine, recorridoCtr)
+	recorridoRoutes.Run()
 
 	puntoRepository := puntoAdapters.NewPostgresPuntoRecoleccion()
 
@@ -468,6 +488,7 @@ func InitDependencies() {
 		ciudadanoDeps.UpdateCiudadanoController,
 		ciudadanoDeps.DeleteCiudadanoController,
 		ciudadanoDeps.LoginCiudadanoController,
+		ciudadanoDeps.UpdateFCMTokenController,
 	)
 
 	ciudadanosRoutes.DomicilioRoutes(
@@ -488,7 +509,6 @@ func InitDependencies() {
 	// ===============================
 	// ALERTA USUARIO
 	// ===============================
-	alertaRepository := alertaPostgres.NewPostgresAlertaRepository(db)
 	createAlertaUC := alertaApplication.NewCreateAlerta(alertaRepository)
 	listMisAlertasUC := alertaApplication.NewListMisAlertas(alertaRepository)
 	marcarLeidaUC := alertaApplication.NewMarcarLeida(alertaRepository)
@@ -501,41 +521,31 @@ func InitDependencies() {
 	// FALLAS Y MANTENIMIENTO
 	// ===============================
 
-	anomaliaRoutes := anomalia.NewAnomaliaRouter(engine)
-
+	anomaliaRoutes := anomalia.NewAnomaliaRouter(engine, alertaRepository, cfg.ModeloReportesURL, cfg.ClasificadorURL)
 	anomaliaRoutes.Run()
 
-	incidenciaRoutes := incidencia.NewIncidenciaRouter(engine)
+	// ===============================
+	// NOTIFICACIONES Y WS (NUEVO/REACTIVADO)
+	// ===============================
+	notificacionRoutes := notificacionInfra.NewNotificacionRouter(engine)
+	notificacionRoutes.Run()
 
-	incidenciaRoutes.Run()
+	pushNotifRouter := notificacionInfra.NewPushNotificationRouter(engine)
+	pushNotifRouter.Run()
 
-	reporteConductorRoutes := reporteConductor.NewReporteConductorRouter(engine)
+	// ===============================
+	// DISPOSITIVOS (NUEVO)
+	// ===============================
+	dispositivoDeps := dispositivoInfra.InitDispositivoDependencies(db)
+	dispositivoRoutes.RegisterDispositivoRoutes(engine, dispositivoDeps.DispositivoController)
 
-	reporteConductorRoutes.Run()
-
-	registroMantenimientoRoutes := registroMantenimiento.NewRegistroMantenimientoRouter(engine)
-
-	registroMantenimientoRoutes.Run()
-
-	reporteFallaCriticaRoutes := reporteFallaCritica.NewReporteFallaCriticaRouter(engine)
-
-	reporteFallaCriticaRoutes.Run()
-
-	alertaMantenimientoRoutes := alertaMantenimiento.NewAlertaMantenimientoRouter(engine)
-
-	alertaMantenimientoRoutes.Run()
-
-	reporteMantenimientoGeneradoRoutes := reporteMantenimientoGenerado.NewReporteMantenimientoGeneradoRouter(engine)
-
-	reporteMantenimientoGeneradoRoutes.Run()
-
-	seguimientoFallaCriticaRoutes := seguimientoFallaCritica.NewSeguimientoFallaCriticaRouter(engine)
-
-	seguimientoFallaCriticaRoutes.Run()
-
-	tipoMantenimientoRoutes := tipoMantenimiento.NewTipoMantenimientoRouter(engine)
-
-	tipoMantenimientoRoutes.Run()
+	// ===============================
+	// TRACKING WS (GPS conductor → ciudadanos)
+	// ===============================
+	trackingHub := tracking_ws.NewHub()
+	go trackingHub.Run()
+	trackingHandler := tracking_ws.NewHandler(trackingHub)
+	tracking_ws.RegisterRoutes(engine, trackingHandler)
 
 	engine.Run(":8080")
 }

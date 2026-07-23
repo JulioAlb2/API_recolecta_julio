@@ -32,6 +32,7 @@ func NewUpdateEstadoCamionController(
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/estado-camion/{id} [put]
 func (ctr *UpdateEstadoCamionController) Run(ctx *gin.Context) {
 	idParam := ctx.Param("id")

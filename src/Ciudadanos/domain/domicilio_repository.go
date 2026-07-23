@@ -13,5 +13,5 @@ type DomicilioRepository interface {
 	ListByCiudadanoID(ctx context.Context, ciudadanoID int) ([]entities.Domicilio, error)
 	Update(ctx context.Context, d *entities.Domicilio) error
 	DeleteByCiudadano(ctx context.Context, id int, ciudadanoID int) error
-	FindByAlias(ctx context.Context, alias string) (*entities.Domicilio, error)
+	FindByAlias(ctx context.Context, alias string, ciudadanoID int) (*entities.Domicilio, error)
 }

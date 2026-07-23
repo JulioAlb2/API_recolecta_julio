@@ -24,6 +24,7 @@ func NewDeleteHistorialAsignacionCamionController(uc *application.DeleteHistoria
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/historial-asignacion/{id} [delete]
 func (ctr *DeleteHistorialAsignacionCamionController) Run(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

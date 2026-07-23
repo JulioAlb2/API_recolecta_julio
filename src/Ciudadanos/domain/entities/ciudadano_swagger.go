@@ -2,10 +2,10 @@ package entities
 
 // swagger:model CreateCiudadanoRequest
 type CreateCiudadanoRequest struct {
-	Email    string `json:"email" binding:"required"`
-	Alias    string `json:"alias" binding:"required"`
-	Password string `json:"password" binding:"required"`
-	FCMToken string `json:"fcm_token" binding:"required"`
+	Email    string  `json:"email" binding:"required"`
+	Alias    string  `json:"alias" binding:"required"`
+	Password string  `json:"password" binding:"required"`
+	FCMToken string  `json:"fcm_token" binding:"required"`
 }
 
 // swagger:model UpdateCiudadanoRequest

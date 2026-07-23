@@ -44,7 +44,7 @@ func NewRellenoSanitarioRoutes(
 
 func (r *RellenoSanitarioRoutes) Run() {
 	routes := r.engine.Group("/api/relleno-sanitario")
-	routes.Use(core.JWTAuthMiddleware(), core.RequireRole(core.SUPERVISOR, core.COORDINADOR, core.CONDUCTOR))
+	routes.Use(core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN, core.SUPERVISOR, core.COORDINADOR, core.CONDUCTOR))
 	{
 		routes.POST("/", r.createRellenoSanitarioController.Execute)
 		routes.GET("/", r.getAllRellenoSanitarioController.Execute)

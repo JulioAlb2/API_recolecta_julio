@@ -14,11 +14,19 @@ func CiudadanoRoutes(
 	updateController *controller_ciudadano.UpdateCiudadanoController,
 	deleteController *controller_ciudadano.DeleteCiudadanoController,
 	loginController *controller_ciudadano.LoginCiudadanoController,
+	updateFCMController *controller_ciudadano.UpdateFCMTokenController,
 ) {
 	ciudadanos := router.Group("/api/ciudadanos")
 
 	ciudadanos.POST("", createController.Run)
 	ciudadanos.POST("/login", loginController.Run)
+
+	// Ruta protegida por JWT pero accesible por cualquier usuario autenticado (incluyendo Ciudadanos)
+	jwtProtected := ciudadanos.Group("")
+	jwtProtected.Use(core.JWTAuthMiddleware())
+	{
+		jwtProtected.PATCH("/fcm-token", updateFCMController.Run)
+	}
 
 	protected := ciudadanos.Group("")
 	protected.Use(core.JWTAuthMiddleware())

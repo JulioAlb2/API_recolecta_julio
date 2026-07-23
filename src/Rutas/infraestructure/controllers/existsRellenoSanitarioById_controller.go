@@ -25,6 +25,7 @@ func NewExistsRellenoSanitarioByIdController(
 // @Success      200 {object} entities.RellenoSanitarioListResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/relleno-sanitario/exists/{id} [get]
 func (c *ExistsRellenoSanitarioByIdController) Execute(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

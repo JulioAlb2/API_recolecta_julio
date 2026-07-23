@@ -8,6 +8,8 @@ type CreateDomicilioRequest struct {
 	Calle       string  `json:"calle" binding:"required"`
 	Numero      string  `json:"numero" binding:"required"`
 	Referencia  *string `json:"referencia,omitempty"`
+	Lat         float64 `json:"lat"`
+	Lon         float64 `json:"lon"`
 }
 
 // swagger:model UpdateDomicilioRequest

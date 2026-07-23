@@ -24,6 +24,7 @@ func NewGetHistorialByCamionController(uc *application.GetHistorialByCamionUseCa
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/historial-asignacion/camion/{camionId} [get]
 func (ctr *GetHistorialByCamionController) Run(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("camionId"))

@@ -30,7 +30,7 @@ func (c *AlertaController) RegisterRoutes(r *gin.RouterGroup) {
 
 	r.POST(
 		"/alertas",
-		core.RequireRole(core.SUPERVISOR),
+		core.RequireRole(core.ADMIN, core.SUPERVISOR),
 		c.Create,
 	)
 	r.GET("/alertas", c.ListMine)
@@ -41,6 +41,7 @@ func (c *AlertaController) RegisterRoutes(r *gin.RouterGroup) {
 // @Tags         AlertaUsuario
 // @Accept       json
 // @Produce      json
+// @Security     BearerAuth
 // @Param        body body domain.AlertaUsuario true "Datos de la alerta"
 // @Success      201
 // @Failure      400 {object} core.ErrorResponse
@@ -78,6 +79,7 @@ func (c *AlertaController) Create(ctx *gin.Context) {
 // @Produce      json
 // @Success      200 {array} domain.AlertaUsuario
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/alertas [get]
 func (c *AlertaController) ListMine(ctx *gin.Context) {
 	alertas, err := c.list.Execute(ctx.GetInt("user_id"))
@@ -95,6 +97,7 @@ func (c *AlertaController) ListMine(ctx *gin.Context) {
 // @Param        id path int true "ID de la alerta"
 // @Success      200
 // @Failure      403 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/alertas/{id}/leida [put]
 func (c *AlertaController) MarkAsRead(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

@@ -24,6 +24,8 @@ type TruckStateEvent struct {
 	TruckID      int32
 	StateCode    StateCode
 	OccurredAt   time.Time
+	Lat          float64
+	Lon          float64
 }
 
 type EventTraceRecord struct {

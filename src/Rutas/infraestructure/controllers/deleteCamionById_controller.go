@@ -26,6 +26,7 @@ func NewDeleteCamionController(uc *application.DeleteCamionUseCase) *DeleteCamio
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/camion/{id} [delete]
 func (ctr *DeleteCamionController) Run(ctx *gin.Context) {
 	idParam := ctx.Param("id")

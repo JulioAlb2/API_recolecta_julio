@@ -22,6 +22,7 @@ func NewCreateRellenoSanitarioController(uc *application.SaveRellenoSanitarioUse
 // @Param        body body entities.CreateRellenoSanitarioRequest true "Body"
 // @Success      201 {object} entities.RellenoSanitarioResponse
 // @Failure      400 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/relleno-sanitario/ [post]
 func (c *CreateRellenoSanitarioController) Execute(ctx *gin.Context) {
 	var relleno entities.RellenoSanitario

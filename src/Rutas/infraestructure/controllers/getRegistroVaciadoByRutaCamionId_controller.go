@@ -26,6 +26,7 @@ func NewGetRegistroVaciadoByRutaCamionIDController(
 // @Success      200 {object} entities.RegistroVaciadoResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/registro-vaciado/ruta-camion/{ruta_camion_id} [get]
 func (c *GetRegistroVaciadoByRutaCamionIDController) Run(ctx *gin.Context) {
 	rutaCamionID, err := strconv.Atoi(ctx.Param("ruta_camion_id"))

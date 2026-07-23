@@ -26,6 +26,7 @@ func NewDeleteRegistroVaciadoController(uc *application.DeleteRegistroVaciadoUse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/registro-vaciado/{id} [delete]
 func (c *DeleteRegistroVaciadoController) Run(ctx *gin.Context) {
 	idStr := ctx.Param("id")

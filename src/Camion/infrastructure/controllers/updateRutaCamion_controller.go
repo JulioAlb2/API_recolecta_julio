@@ -28,6 +28,7 @@ func NewUpdateRutaCamionController(
 // @Success      200 {object} entities.HistorialAsignacionCamionResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/ruta-camion/{id} [put]
 func (c *UpdateRutaCamionController) Run(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

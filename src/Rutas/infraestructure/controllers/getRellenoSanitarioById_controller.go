@@ -25,6 +25,7 @@ func NewGetRellenoSanitarioByIDController(uc *application.GetRellenoSanitarioByI
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      404 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/relleno-sanitario/{id} [get]
 func (c *GetRellenoSanitarioByIDController) Execute(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

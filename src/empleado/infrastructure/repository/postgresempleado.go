@@ -51,7 +51,7 @@ func (r *EmpleadoPostgresRepository) Create(ctx context.Context, empleado *entit
 
 func (r *EmpleadoPostgresRepository) GetByID(ctx context.Context, id int) (*entities.Empleado, error) {
 	const q = `
-		SELECT id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, updated_at, deleted_at
+		SELECT id, tenant_id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, updated_at, deleted_at
 		FROM empleado
 		WHERE id = $1 AND deleted_at IS NULL
 	`
@@ -60,6 +60,7 @@ func (r *EmpleadoPostgresRepository) GetByID(ctx context.Context, id int) (*enti
 	var deletedAt sql.NullTime
 	err := r.db.QueryRow(ctx, q, id).Scan(
 		&empleado.ID,
+		&empleado.TenantID,
 		&empleado.Nombre,
 		&empleado.Apellidos,
 		&empleado.Mail,
@@ -87,7 +88,7 @@ func (r *EmpleadoPostgresRepository) GetByID(ctx context.Context, id int) (*enti
 
 func (r *EmpleadoPostgresRepository) List(ctx context.Context) ([]entities.Empleado, error) {
 	const q = `
-		SELECT id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, updated_at, deleted_at
+		SELECT id, tenant_id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, updated_at, deleted_at
 		FROM empleado
 		WHERE deleted_at IS NULL
 		ORDER BY id DESC
@@ -106,6 +107,7 @@ func (r *EmpleadoPostgresRepository) List(ctx context.Context) ([]entities.Emple
 		var deletedAt sql.NullTime
 		if err := rows.Scan(
 			&empleado.ID,
+			&empleado.TenantID,
 			&empleado.Nombre,
 			&empleado.Apellidos,
 			&empleado.Mail,
@@ -188,7 +190,7 @@ func (r *EmpleadoPostgresRepository) Delete(ctx context.Context, id int) error {
 
 func (r *EmpleadoPostgresRepository) FindByMail(ctx context.Context, mail string) (*entities.Empleado, error) {
 	const q = `
-		SELECT id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, updated_at, deleted_at
+		SELECT id, tenant_id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, updated_at, deleted_at
 		FROM empleado
 		WHERE LOWER(mail) = $1 AND deleted_at IS NULL
 	`
@@ -197,6 +199,7 @@ func (r *EmpleadoPostgresRepository) FindByMail(ctx context.Context, mail string
 	var deletedAt sql.NullTime
 	err := r.db.QueryRow(ctx, q, strings.ToLower(strings.TrimSpace(mail))).Scan(
 		&empleado.ID,
+		&empleado.TenantID,
 		&empleado.Nombre,
 		&empleado.Apellidos,
 		&empleado.Mail,
@@ -224,7 +227,7 @@ func (r *EmpleadoPostgresRepository) FindByMail(ctx context.Context, mail string
 
 func (r *EmpleadoPostgresRepository) FindByUsername(ctx context.Context, username string) (*entities.Empleado, error) {
 	const q = `
-		SELECT id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, updated_at, deleted_at
+		SELECT id, tenant_id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, updated_at, deleted_at
 		FROM empleado
 		WHERE LOWER(username) = $1 AND deleted_at IS NULL
 	`
@@ -233,6 +236,7 @@ func (r *EmpleadoPostgresRepository) FindByUsername(ctx context.Context, usernam
 	var deletedAt sql.NullTime
 	err := r.db.QueryRow(ctx, q, strings.ToLower(strings.TrimSpace(username))).Scan(
 		&empleado.ID,
+		&empleado.TenantID,
 		&empleado.Nombre,
 		&empleado.Apellidos,
 		&empleado.Mail,
@@ -262,7 +266,7 @@ func (r *EmpleadoPostgresRepository) FindByMailOrUsername(ctx context.Context, v
 	credential := strings.ToLower(strings.TrimSpace(value))
 
 	const q = `
-		SELECT id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, COALESCE(updated_at, created_at), deleted_at
+		SELECT id, tenant_id, nombre, apellidos, mail, password, username, desactivado, rol_id, created_at, COALESCE(updated_at, created_at), deleted_at
 		FROM empleado
 		WHERE (LOWER(mail) = $1 OR LOWER(username) = $1) AND deleted_at IS NULL
 		LIMIT 1
@@ -272,6 +276,7 @@ func (r *EmpleadoPostgresRepository) FindByMailOrUsername(ctx context.Context, v
 	var deletedAt sql.NullTime
 	err := r.db.QueryRow(ctx, q, credential).Scan(
 		&empleado.ID,
+		&empleado.TenantID,
 		&empleado.Nombre,
 		&empleado.Apellidos,
 		&empleado.Mail,

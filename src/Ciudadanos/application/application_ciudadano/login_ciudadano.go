@@ -54,7 +54,7 @@ func (uc *LoginCiudadano) Execute(ctx context.Context, in LoginCiudadanoInput) (
 		return nil, errors.New("credenciales inválidas")
 	}
 
-	token, err := core.GenerateToken(ciudadano.ID, 0)
+	token, err := core.GenerateToken(ciudadano.ID, 0, ciudadano.TenantID)
 	if err != nil {
 		return nil, err
 	}

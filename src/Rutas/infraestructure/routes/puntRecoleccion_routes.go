@@ -39,7 +39,7 @@ func NewPuntoRecoleccionRoutes(
 
 func (r *PuntoRecoleccionRoutes) Run() {
 	routes := r.engine.Group("/api/puntos-recoleccion")
-	routes.Use(core.JWTAuthMiddleware(), core.RequireRole(core.CONDUCTOR, core.SUPERVISOR, core.COORDINADOR))
+	routes.Use(core.JWTAuthMiddleware(), core.RequireRole(core.ADMIN, core.CONDUCTOR, core.SUPERVISOR, core.COORDINADOR))
 	{
 		routes.POST("/", r.createController.Run)
 		routes.GET("/", r.getAllController.Run)

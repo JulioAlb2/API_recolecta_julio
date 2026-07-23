@@ -1,5 +1,66 @@
 basePath: /
 definitions:
+  application.FailedNotificationRecord:
+    properties:
+      body:
+        type: string
+      error:
+        type: string
+      timestamp:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      user_id:
+        type: string
+    type: object
+  application.InboxRecord:
+    properties:
+      body:
+        type: string
+      delivered:
+        type: boolean
+      error:
+        type: string
+      sent_at:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  application_ciudadano.UpdateFCMTokenInput:
+    properties:
+      fcm_token:
+        type: string
+    type: object
+  controllers.ProcessArrivalRequest:
+    properties:
+      point_id:
+        type: string
+      truck_id:
+        type: integer
+    required:
+    - point_id
+    - truck_id
+    type: object
+  controllers.ProcessTelemetryRequest:
+    properties:
+      lat:
+        type: number
+      lon:
+        type: number
+      state_code:
+        type: string
+      truck_id:
+        type: integer
+    required:
+    - lat
+    - lon
+    - state_code
+    - truck_id
+    type: object
   core.ErrorDetail:
     properties:
       code:
@@ -64,73 +125,62 @@ definitions:
     - nombre
     - zona
     type: object
-  entities.AlertaMantenimiento:
+  domain.SendResult:
     properties:
-      alerta_id:
-        type: integer
-      atendido:
-        type: boolean
-      camion_id:
-        type: integer
-      created_at:
-        type: string
-      descripcion:
-        type: string
-      observaciones:
-        type: string
-      tipo_mantenimiento_id:
-        type: integer
-    type: object
-  entities.AlertaMantenimientoListResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        items:
-          $ref: '#/definitions/entities.AlertaMantenimiento'
-        type: array
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.AlertaMantenimientoMessageResponse:
-    properties:
-      code:
-        type: integer
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.AlertaMantenimientoResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        $ref: '#/definitions/entities.AlertaMantenimiento'
-      message:
+      error:
         type: string
       success:
         type: boolean
     type: object
   entities.Anomalia:
     properties:
+      accion_sugerida:
+        type: string
       anomalia_id:
         type: integer
+      anomalia_referencia_id:
+        type: integer
+      camion_id:
+        type: integer
+      categoria_clasificada:
+        type: string
+      conductor_id:
+        type: integer
+      created_at:
+        type: string
       descripcion:
         type: string
+      eliminado:
+        type: boolean
       estado:
+        type: string
+      estado_pipeline:
+        description: |-
+          Pipeline modelo_reportes -> clasificador_reportes. Se llenan por
+          ActualizarPipeline en background, no al crear la anomalia (por eso
+          EstadoPipeline arranca en "pendiente" via DEFAULT de la columna).
         type: string
       fecha_reporte:
         type: string
       fecha_resolucion:
         type: string
-      id_chofer_id:
+      inferencia_id:
         type: integer
+      json_ruta:
+        type: string
+      nivel_riesgo:
+        type: string
+      pipeline_error:
+        type: string
       punto_id:
         type: integer
+      ruta_id:
+        type: integer
+      subtipo_clasificado:
+        type: string
       tipo_anomalia:
+        $ref: '#/definitions/entities.TipoAnomalia'
+      updated_at:
         type: string
     type: object
   entities.AnomaliaListResponse:
@@ -166,6 +216,40 @@ definitions:
       success:
         type: boolean
     type: object
+  entities.Camion:
+    properties:
+      camion_id:
+        type: integer
+      color_disponibilidad:
+        type: string
+      created_at:
+        type: string
+      disponibilidad_id:
+        type: integer
+      es_rentado:
+        type: boolean
+      modelo:
+        type: string
+      nombre_disponibilidad:
+        type: string
+      placa:
+        type: string
+      tipo_camion_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  entities.CamionResponse:
+    properties:
+      code:
+        type: integer
+      data:
+        $ref: '#/definitions/entities.Camion'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   entities.Ciudadano:
     properties:
       alias:
@@ -175,6 +259,8 @@ definitions:
       email:
         type: string
       id:
+        type: integer
+      tenant_id:
         type: integer
     type: object
   entities.CiudadanoListResponse:
@@ -210,38 +296,55 @@ definitions:
       success:
         type: boolean
     type: object
-  entities.CreateAlertaMantenimientoRequest:
-    properties:
-      camion_id:
-        type: integer
-      descripcion:
-        type: string
-      observaciones:
-        type: string
-      tipo_mantenimiento_id:
-        type: integer
-    required:
-    - camion_id
-    - tipo_mantenimiento_id
-    type: object
   entities.CreateAnomaliaRequest:
     properties:
+      anomalia_referencia_id:
+        type: integer
+      camion_id:
+        type: integer
+      conductor_id:
+        type: integer
       descripcion:
         type: string
       estado:
         type: string
       fecha_reporte:
+        description: 'Formato ISO 8601: YYYY-MM-DDTHH:MM:SSZ'
+        example: "2026-07-22T19:30:00Z"
         type: string
-      id_chofer_id:
-        type: integer
+      json_ruta:
+        type: string
       punto_id:
         type: integer
+      ruta_id:
+        type: integer
       tipo_anomalia:
+        description: 'Valores validos: ANOMALIA | INCIDENCIA | REPORTE_CONDUCTOR |
+          REPORTE_FALLA_CRITICA | SEGUIMIENTO_FALLA_CRITICA'
+        example: REPORTE_CONDUCTOR
         type: string
     required:
     - descripcion
-    - id_chofer_id
+    - fecha_reporte
     - tipo_anomalia
+    type: object
+  entities.CreateCamionRequest:
+    properties:
+      disponibilidad_id:
+        type: integer
+      es_rentado:
+        type: boolean
+      modelo:
+        type: string
+      placa:
+        type: string
+      tipo_camion_id:
+        type: integer
+    required:
+    - disponibilidad_id
+    - modelo
+    - placa
+    - tipo_camion_id
     type: object
   entities.CreateCiudadanoRequest:
     properties:
@@ -269,6 +372,10 @@ definitions:
         type: integer
       colonia_id:
         type: integer
+      lat:
+        type: number
+      lon:
+        type: number
       numero:
         type: string
       referencia:
@@ -330,70 +437,18 @@ definitions:
       id_historial:
         type: integer
     type: object
-  entities.CreateIncidenciaRequest:
-    properties:
-      conductor_id:
-        type: integer
-      descripcion:
-        type: string
-      fecha_reporte:
-        type: string
-      json_ruta:
-        type: string
-      punto_recoleccion_id:
-        type: integer
-    required:
-    - conductor_id
-    - descripcion
-    type: object
-  entities.CreateNotificacionRequest:
-    properties:
-      activa:
-        type: boolean
-      creado_por:
-        type: integer
-      id_camion_relacionado:
-        type: integer
-      id_falla_relacionado:
-        type: integer
-      id_mantenimiento_relacionado:
-        type: integer
-      mensaje:
-        type: string
-      tipo:
-        type: string
-      titulo:
-        type: string
-      usuario_id:
-        type: integer
-    type: object
   entities.CreatePuntoRecoleccionRequest:
     properties:
       cp:
         type: string
+      lat:
+        type: number
+      lon:
+        type: number
       punto_id:
         type: integer
       ruta_id:
         type: integer
-    type: object
-  entities.CreateRegistroMantenimientoRequest:
-    properties:
-      alerta_id:
-        type: integer
-      camion_id:
-        type: integer
-      coordinador_id:
-        type: integer
-      fecha_realizada:
-        type: string
-      kilometraje_mantenimiento:
-        type: number
-      mecanico_responsable:
-        type: string
-      observaciones:
-        type: string
-    required:
-    - camion_id
     type: object
   entities.CreateRegistroVaciadoRequest:
     properties:
@@ -417,43 +472,41 @@ definitions:
     required:
     - nombre
     type: object
-  entities.CreateReporteConductorRequest:
+  entities.CreateRutaRequest:
     properties:
-      camion_id:
-        type: integer
-      conductor_id:
-        type: integer
       descripcion:
         type: string
-      ruta_id:
-        type: integer
+      json_ruta: {}
+      nombre:
+        type: string
     required:
-    - camion_id
-    - conductor_id
-    - descripcion
+    - json_ruta
+    - nombre
     type: object
-  entities.CreateReporteFallaCriticaRequest:
+  entities.DispositivoConductorResponse:
     properties:
-      camion_id:
-        type: integer
+      active:
+        type: boolean
+      api_key:
+        type: string
+      conductor_apellido:
+        type: string
       conductor_id:
         type: integer
-      descripcion:
+      conductor_mail:
         type: string
-    required:
-    - camion_id
-    - conductor_id
-    - descripcion
-    type: object
-  entities.CreateSeguimientoFallaCriticaRequest:
-    properties:
-      comentario:
+      conductor_nombre:
         type: string
-      falla_id:
+      created_at:
+        type: string
+      id:
         type: integer
-    required:
-    - comentario
-    - falla_id
+      mac_address:
+        type: string
+      nombre_dispositivo:
+        type: string
+      serial_number:
+        type: string
     type: object
   entities.Domicilio:
     properties:
@@ -502,6 +555,8 @@ definitions:
       nombre:
         type: string
       rol_id:
+        type: integer
+      tenant_id:
         type: integer
       updated_at:
         type: string
@@ -642,60 +697,6 @@ definitions:
       success:
         type: boolean
     type: object
-  entities.Incidencia:
-    properties:
-      conductor_id:
-        type: integer
-      created_at:
-        type: string
-      descripcion:
-        type: string
-      eliminado:
-        type: boolean
-      fecha_reporte:
-        type: string
-      incidencia_id:
-        type: integer
-      json_ruta:
-        type: string
-      punto_recoleccion_id:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  entities.IncidenciaListResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        items:
-          $ref: '#/definitions/entities.Incidencia'
-        type: array
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.IncidenciaMessageResponse:
-    properties:
-      code:
-        type: integer
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.IncidenciaResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        $ref: '#/definitions/entities.Incidencia'
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
   entities.LoginCiudadanoRequest:
     properties:
       email:
@@ -780,15 +781,6 @@ definitions:
       success:
         type: boolean
     type: object
-  entities.NotificacionMessageResponse:
-    properties:
-      code:
-        type: integer
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
   entities.NotificacionResponse:
     properties:
       code:
@@ -808,6 +800,10 @@ definitions:
         type: string
       eliminado:
         type: boolean
+      lat:
+        type: number
+      lon:
+        type: number
       punto_id:
         type: integer
       ruta_id:
@@ -841,60 +837,6 @@ definitions:
         type: integer
       data:
         $ref: '#/definitions/entities.PuntoRecoleccion'
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.RegistroMantenimiento:
-    properties:
-      alerta_id:
-        type: integer
-      camion_id:
-        type: integer
-      coordinador_id:
-        type: integer
-      created_at:
-        type: string
-      fecha_realizada:
-        type: string
-      kilometraje_mantenimiento:
-        type: number
-      mecanico_responsable:
-        type: string
-      observaciones:
-        type: string
-      registro_id:
-        type: integer
-    type: object
-  entities.RegistroMantenimientoListResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        items:
-          $ref: '#/definitions/entities.RegistroMantenimiento'
-        type: array
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.RegistroMantenimientoMessageResponse:
-    properties:
-      code:
-        type: integer
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.RegistroMantenimientoResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        $ref: '#/definitions/entities.RegistroMantenimiento'
       message:
         type: string
       success:
@@ -992,175 +934,99 @@ definitions:
       success:
         type: boolean
     type: object
-  entities.ReporteConductor:
+  entities.Ruta:
     properties:
-      camion_id:
-        type: integer
-      conductor_id:
-        type: integer
-      created_at:
-        type: string
-      descripcion:
-        type: string
-      reporte_id:
-        type: integer
-      ruta_id:
-        type: integer
-    type: object
-  entities.ReporteConductorListResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        items:
-          $ref: '#/definitions/entities.ReporteConductor'
-        type: array
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.ReporteConductorMessageResponse:
-    properties:
-      code:
-        type: integer
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.ReporteConductorResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        $ref: '#/definitions/entities.ReporteConductor'
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.ReporteFallaCritica:
-    properties:
-      camion_id:
-        type: integer
-      conductor_id:
-        type: integer
       created_at:
         type: string
       descripcion:
         type: string
       eliminado:
         type: boolean
-      falla_id:
+      json_ruta:
+        type: string
+      nombre:
+        type: string
+      ruta_id:
         type: integer
     type: object
-  entities.ReporteFallaCriticaListResponse:
+  entities.RutaResponse:
     properties:
-      code:
-        type: integer
       data:
-        items:
-          $ref: '#/definitions/entities.ReporteFallaCritica'
-        type: array
-      message:
-        type: string
+        $ref: '#/definitions/entities.Ruta'
       success:
         type: boolean
     type: object
-  entities.ReporteFallaCriticaMessageResponse:
+  entities.SolicitarDispositivoRequest:
     properties:
-      code:
-        type: integer
-      message:
+      mac_address:
         type: string
-      success:
-        type: boolean
+      nombre_dispositivo:
+        type: string
+      serial_number:
+        type: string
+    required:
+    - mac_address
+    - serial_number
     type: object
-  entities.ReporteFallaCriticaResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        $ref: '#/definitions/entities.ReporteFallaCritica'
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.SeguimientoFallaCritica:
-    properties:
-      comentario:
-        type: string
-      created_at:
-        type: string
-      falla_id:
-        type: integer
-      seguimiento_id:
-        type: integer
-    type: object
-  entities.SeguimientoFallaCriticaListResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        items:
-          $ref: '#/definitions/entities.SeguimientoFallaCritica'
-        type: array
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.SeguimientoFallaCriticaMessageResponse:
-    properties:
-      code:
-        type: integer
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.SeguimientoFallaCriticaResponse:
-    properties:
-      code:
-        type: integer
-      data:
-        $ref: '#/definitions/entities.SeguimientoFallaCritica'
-      message:
-        type: string
-      success:
-        type: boolean
-    type: object
-  entities.UpdateAlertaMantenimientoRequest:
-    properties:
-      atendido:
-        type: boolean
-      camion_id:
-        type: integer
-      descripcion:
-        type: string
-      observaciones:
-        type: string
-      tipo_mantenimiento_id:
-        type: integer
-    type: object
+  entities.TipoAnomalia:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    type: integer
+    x-enum-varnames:
+    - TipoAnomaliaAnomalia
+    - TipoAnomaliaIncidencia
+    - TipoAnomaliaReporteConductor
+    - TipoAnomaliaReporteFallaCritica
+    - TipoAnomaliaSeguimientoFallaCritica
   entities.UpdateAnomaliaRequest:
     properties:
+      anomalia_referencia_id:
+        type: integer
+      camion_id:
+        type: integer
+      conductor_id:
+        type: integer
       descripcion:
         type: string
+      eliminado:
+        type: boolean
       estado:
         type: string
       fecha_reporte:
+        example: "2026-07-22T19:30:00Z"
         type: string
       fecha_resolucion:
         type: string
-      id_chofer_id:
-        type: integer
+      json_ruta:
+        type: string
       punto_id:
         type: integer
+      ruta_id:
+        type: integer
       tipo_anomalia:
+        example: REPORTE_CONDUCTOR
         type: string
+    required:
+    - descripcion
+    - fecha_reporte
+    - tipo_anomalia
+    type: object
+  entities.UpdateCamionRequest:
+    properties:
+      disponibilidad_id:
+        type: integer
+      es_rentado:
+        type: boolean
+      modelo:
+        type: string
+      placa:
+        type: string
+      tipo_camion_id:
+        type: integer
     type: object
   entities.UpdateCiudadanoRequest:
     properties:
@@ -1214,65 +1080,18 @@ definitions:
       id_historial:
         type: integer
     type: object
-  entities.UpdateIncidenciaRequest:
-    properties:
-      conductor_id:
-        type: integer
-      descripcion:
-        type: string
-      fecha_reporte:
-        type: string
-      json_ruta:
-        type: string
-      punto_recoleccion_id:
-        type: integer
-    type: object
-  entities.UpdateNotificacionRequest:
-    properties:
-      activa:
-        type: boolean
-      creado_por:
-        type: integer
-      id_camion_relacionado:
-        type: integer
-      id_falla_relacionado:
-        type: integer
-      id_mantenimiento_relacionado:
-        type: integer
-      mensaje:
-        type: string
-      tipo:
-        type: string
-      titulo:
-        type: string
-      usuario_id:
-        type: integer
-    type: object
   entities.UpdatePuntoRecoleccionRequest:
     properties:
       cp:
         type: string
+      lat:
+        type: number
+      lon:
+        type: number
       punto_id:
         type: integer
       ruta_id:
         type: integer
-    type: object
-  entities.UpdateRegistroMantenimientoRequest:
-    properties:
-      alerta_id:
-        type: integer
-      camion_id:
-        type: integer
-      coordinador_id:
-        type: integer
-      fecha_realizada:
-        type: string
-      kilometraje_mantenimiento:
-        type: number
-      mecanico_responsable:
-        type: string
-      observaciones:
-        type: string
     type: object
   entities.UpdateRellenoSanitarioRequest:
     properties:
@@ -1285,34 +1104,33 @@ definitions:
       nombre:
         type: string
     type: object
-  entities.UpdateReporteConductorRequest:
+  infrastructure.broadcastMessageRequest:
     properties:
-      camion_id:
-        type: integer
-      conductor_id:
-        type: integer
-      descripcion:
+      body:
         type: string
-      ruta_id:
-        type: integer
+      title:
+        type: string
+    required:
+    - body
+    - title
     type: object
-  entities.UpdateReporteFallaCriticaRequest:
+  infrastructure.sendCitizenRequest:
     properties:
-      camion_id:
-        type: integer
-      conductor_id:
-        type: integer
-      descripcion:
+      body:
         type: string
-    type: object
-  entities.UpdateSeguimientoFallaCriticaRequest:
-    properties:
-      comentario:
+      data:
+        additionalProperties:
+          type: string
+        type: object
+      title:
         type: string
-      falla_id:
-        type: integer
+      type:
+        type: string
+      user_ids:
+        items:
+          type: string
+        type: array
     type: object
-host: localhost:8080
 info:
   contact: {}
   description: API para gestión de recolección de residuos
@@ -1334,6 +1152,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar mis alertas
       tags:
       - AlertaUsuario
@@ -1360,219 +1180,11 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear alerta de usuario
       tags:
       - AlertaUsuario
-  /api/alertas-mantenimiento/:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Listar alertas de mantenimiento
-      tags:
-      - AlertaMantenimiento
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateAlertaMantenimientoRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear alerta de mantenimiento
-      tags:
-      - AlertaMantenimiento
-  /api/alertas-mantenimiento/{id}:
-    delete:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoMessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Eliminar alerta
-      tags:
-      - AlertaMantenimiento
-    get:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Alerta por ID
-      tags:
-      - AlertaMantenimiento
-    put:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.UpdateAlertaMantenimientoRequest'
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Actualizar alerta
-      tags:
-      - AlertaMantenimiento
-  /api/alertas-mantenimiento/{id}/atender:
-    patch:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Marcar alerta como atendida
-      tags:
-      - AlertaMantenimiento
-  /api/alertas-mantenimiento/atendidas:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Alertas atendidas
-      tags:
-      - AlertaMantenimiento
-  /api/alertas-mantenimiento/camion/{camion_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Alertas por camión
-      tags:
-      - AlertaMantenimiento
-  /api/alertas-mantenimiento/fecha:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Alertas por rango de fecha
-      tags:
-      - AlertaMantenimiento
-  /api/alertas-mantenimiento/pendientes:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Alertas pendientes
-      tags:
-      - AlertaMantenimiento
-  /api/alertas-mantenimiento/tipo/{tipo_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.AlertaMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Alertas por tipo de mantenimiento
-      tags:
-      - AlertaMantenimiento
   /api/alertas/{id}/leida:
     put:
       parameters:
@@ -1590,6 +1202,8 @@ paths:
           description: Forbidden
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Marcar alerta como leída
       tags:
       - AlertaUsuario
@@ -1606,10 +1220,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar anomalías
       tags:
       - Anomalia
     post:
+      description: |-
+        Abierto a cualquier usuario autenticado (ciudadano, conductor
+        o staff) -- solo el resto del CRUD de anomalias queda
+        restringido a ADMIN/SUPERVISOR/COORDINADOR.
       parameters:
       - description: Body
         in: body
@@ -1628,6 +1248,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear anomalía
       tags:
       - Anomalia
@@ -1650,6 +1272,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar anomalía
       tags:
       - Anomalia
@@ -1671,6 +1295,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Anomalía por ID
       tags:
       - Anomalia
@@ -1698,7 +1324,27 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Actualizar anomalía
+      tags:
+      - Anomalia
+  /api/anomalias/camion/{camionId}:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entities.AnomaliaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Anomalías por camión
       tags:
       - Anomalia
   /api/anomalias/chofer/{choferId}:
@@ -1714,6 +1360,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Anomalías por chofer
       tags:
       - Anomalia
@@ -1730,6 +1378,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Anomalías por estado
       tags:
       - Anomalia
@@ -1746,6 +1396,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Anomalías por rango de fecha
       tags:
       - Anomalia
@@ -1762,7 +1414,45 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Anomalías por punto
+      tags:
+      - Anomalia
+  /api/anomalias/referencia/{referenciaId}:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entities.AnomaliaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Anomalías por anomalía de referencia (seguimientos)
+      tags:
+      - Anomalia
+  /api/anomalias/ruta/{rutaId}:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entities.AnomaliaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Anomalías por ruta
       tags:
       - Anomalia
   /api/anomalias/tipo:
@@ -1778,6 +1468,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Anomalías por tipo
       tags:
       - Anomalia
@@ -1794,6 +1486,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar camiones
       tags:
       - Camion
@@ -1806,18 +1500,20 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/entities.CreateEstadoCamionRequest'
+          $ref: '#/definitions/entities.CreateCamionRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/entities.EstadoCamionResponse'
+            $ref: '#/definitions/entities.CamionResponse'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear camión
       tags:
       - Camion
@@ -1848,6 +1544,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar camión
       tags:
       - Camion
@@ -1869,6 +1567,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Obtener camión por ID
       tags:
       - Camion
@@ -1886,18 +1586,20 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/entities.UpdateEstadoCamionRequest'
+          $ref: '#/definitions/entities.UpdateCamionRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/entities.EstadoCamionResponse'
+            $ref: '#/definitions/entities.CamionResponse'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Actualizar camión
       tags:
       - Camion
@@ -1924,6 +1626,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Buscar camiones por modelo
       tags:
       - Camion
@@ -1950,7 +1654,64 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Buscar camión por placa
+      tags:
+      - Camion
+  /api/camion/telemetry:
+    post:
+      consumes:
+      - application/json
+      description: 'Actualiza la posición del camión (latitud, longitud), su estado
+        operativo actual en Redis (1: En ruta, 2: Vaciando tolva, 3: Repostando gasolina,
+        4: Volviendo a base, 5: En base) y registra eventos en la base de datos PostgreSQL.'
+      parameters:
+      - description: Dirección MAC del dispositivo Android
+        in: header
+        name: X-Device-MAC
+        required: true
+        type: string
+      - description: Número de serie del dispositivo Android
+        in: header
+        name: X-Device-Serial
+        required: true
+        type: string
+      - description: API Key única del dispositivo
+        in: header
+        name: X-Device-API-Key
+        required: true
+        type: string
+      - description: Datos de telemetría y estado operativo
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.ProcessTelemetryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Procesar telemetría de camión
       tags:
       - Camion
   /api/ciudadanos:
@@ -2097,6 +1858,44 @@ paths:
       summary: Actualizar ciudadano
       tags:
       - Ciudadano
+  /api/ciudadanos/fcm-token:
+    patch:
+      consumes:
+      - application/json
+      description: Actualiza u overwrita el token FCM del ciudadano autenticado en
+        Redis.
+      parameters:
+      - description: FCM Token Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/application_ciudadano.UpdateFCMTokenInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Actualizar token FCM de ciudadano
+      tags:
+      - Ciudadano
   /api/ciudadanos/login:
     post:
       consumes:
@@ -2145,6 +1944,8 @@ paths:
           description: Error interno del servidor
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar colonias
       tags:
       - Colonia
@@ -2183,7 +1984,7 @@ paths:
           schema:
             $ref: '#/definitions/core.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Crear colonia
       tags:
       - Colonia
@@ -2219,7 +2020,7 @@ paths:
           schema:
             $ref: '#/definitions/core.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Eliminar colonia
       tags:
       - Colonia
@@ -2250,6 +2051,8 @@ paths:
           description: Error interno del servidor
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Obtener colonia por ID
       tags:
       - Colonia
@@ -2294,10 +2097,164 @@ paths:
           schema:
             $ref: '#/definitions/core.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Actualizar colonia
       tags:
       - Colonia
+  /api/dispositivos/aprobar/{conductor_id}:
+    put:
+      consumes:
+      - application/json
+      description: Activa el dispositivo de un conductor para permitirle conectarse
+        y enviar telemetría/arrival. Solo accesible para Supervisor, Coordinador o
+        Administrador.
+      parameters:
+      - description: ID del Conductor
+        in: path
+        name: conductor_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dispositivo aprobado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: ID inválido
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Aprobar vinculación de dispositivo
+      tags:
+      - Dispositivo
+  /api/dispositivos/desvincular/{conductor_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Elimina/desvincula de forma lógica el dispositivo de un conductor,
+        permitiendo que solicite vincular otro. Solo accesible para Supervisor, Coordinador
+        o Administrador.
+      parameters:
+      - description: ID del Conductor
+        in: path
+        name: conductor_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dispositivo desvinculado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: ID inválido
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Desvincular dispositivo de conductor
+      tags:
+      - Dispositivo
+  /api/dispositivos/mi-estado:
+    get:
+      description: Indica si el conductor ya registró un dispositivo y si fue aprobado
+        por un administrador.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Estado del dispositivo
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Consultar estado de mi dispositivo
+      tags:
+      - Dispositivo
+  /api/dispositivos/pendientes:
+    get:
+      consumes:
+      - application/json
+      description: Devuelve la lista de dispositivos que están solicitando vinculación
+        y esperan aprobación del supervisor. Solo accesible para Supervisor, Coordinador
+        o Administrador.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de dispositivos pendientes
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/entities.DispositivoConductorResponse'
+              type: array
+            type: object
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar dispositivos pendientes de aprobación
+      tags:
+      - Dispositivo
+  /api/dispositivos/solicitar:
+    post:
+      consumes:
+      - application/json
+      description: Registra una solicitud de vinculación para el conductor autenticado
+        y retorna la API Key generada (iniciando en estado inactivo hasta que el supervisor
+        la apruebe).
+      parameters:
+      - description: Datos físicos del dispositivo
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entities.SolicitarDispositivoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API Key generada y mensaje de confirmación
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request / JSON inválido
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Solicitar vinculación de dispositivo
+      tags:
+      - Dispositivo
   /api/domicilios:
     get:
       produces:
@@ -2624,6 +2581,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar estados de camión
       tags:
       - EstadoCamion
@@ -2648,6 +2607,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear estado de camión
       tags:
       - EstadoCamion
@@ -2678,6 +2639,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar estado de camión
       tags:
       - EstadoCamion
@@ -2715,6 +2678,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Actualizar estado de camión
       tags:
       - EstadoCamion
@@ -2745,6 +2710,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Estado de camión por ID
       tags:
       - EstadoCamion
@@ -2761,6 +2728,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar historiales de asignación
       tags:
       - HistorialAsignacion
@@ -2785,6 +2754,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear historial de asignación de camión
       tags:
       - HistorialAsignacion
@@ -2815,6 +2786,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar historial de asignación
       tags:
       - HistorialAsignacion
@@ -2836,6 +2809,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Obtener historial por ID
       tags:
       - HistorialAsignacion
@@ -2865,6 +2840,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Actualizar historial de asignación
       tags:
       - HistorialAsignacion
@@ -2895,6 +2872,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Asignación activa por camión
       tags:
       - HistorialAsignacion
@@ -2925,6 +2904,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Asignación activa por chofer
       tags:
       - HistorialAsignacion
@@ -2951,6 +2932,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Dar de baja historial
       tags:
       - HistorialAsignacion
@@ -2981,6 +2964,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Historial por camión
       tags:
       - HistorialAsignacion
@@ -3007,6 +2992,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Cerrar asignación activa de camión
       tags:
       - HistorialAsignacion
@@ -3033,6 +3020,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Cerrar asignación activa de chofer
       tags:
       - HistorialAsignacion
@@ -3063,165 +3052,240 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Historial por chofer
       tags:
       - HistorialAsignacion
-  /api/incidencias/:
+  /api/notificaciones-push/ciudadanos/{citizen_id}/historial:
     get:
+      description: Retorna las últimas 50 notificaciones recibidas o fallidas enviadas
+        al ciudadano, leídas de la lista en Redis.
+      parameters:
+      - description: ID del Ciudadano
+        in: path
+        name: citizen_id
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/entities.IncidenciaListResponse'
-        "400":
-          description: Bad Request
+            items:
+              $ref: '#/definitions/application.InboxRecord'
+            type: array
+        "500":
+          description: error
           schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Listar incidencias
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener bandeja de entrada del ciudadano
       tags:
-      - Incidencia
+      - PushNotification
+  /api/notificaciones-push/ciudadanos/difusion:
     post:
+      consumes:
+      - application/json
+      description: Envía una notificación push con título y cuerpo a todos los ciudadanos
+        registrados en el sistema.
       parameters:
-      - description: Body
+      - description: Datos del mensaje general
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/entities.CreateIncidenciaRequest'
+          $ref: '#/definitions/infrastructure.broadcastMessageRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Detalles de envío para cada ciudadano
           schema:
-            $ref: '#/definitions/entities.IncidenciaResponse'
+            additionalProperties:
+              $ref: '#/definitions/domain.SendResult'
+            type: object
         "400":
-          description: Bad Request
+          description: error
           schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear incidencia
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Enviar notificación general a todos los ciudadanos (Broadcast)
       tags:
-      - Incidencia
-  /api/incidencias/{id}:
-    delete:
+      - PushNotification
+  /api/notificaciones-push/ciudadanos/difusion/punto/{point_id}:
+    post:
+      consumes:
+      - application/json
+      description: Envía una notificación push con título y cuerpo a todos los ciudadanos
+        con domicilios en un radio de 200m del punto de parada especificado.
       parameters:
-      - description: ID
+      - description: ID del Punto de Parada (ej. 15)
         in: path
-        name: id
+        name: point_id
         required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.IncidenciaMessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Eliminar incidencia
-      tags:
-      - Incidencia
-    get:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.IncidenciaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Incidencia por ID
-      tags:
-      - Incidencia
-    put:
-      parameters:
-      - description: Body
+        type: string
+      - description: Datos del mensaje general
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/entities.UpdateIncidenciaRequest'
-      - description: ID
+          $ref: '#/definitions/infrastructure.broadcastMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Detalles de envío para cada ciudadano
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.SendResult'
+            type: object
+        "400":
+          description: error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Enviar notificación general a ciudadanos cerca de un punto
+      tags:
+      - PushNotification
+  /api/notificaciones-push/ciudadanos/difusion/ruta/{route_id}:
+    post:
+      consumes:
+      - application/json
+      description: Envía una notificación push con título y cuerpo a todos los ciudadanos
+        que tengan un domicilio registrado en la colonia de la ruta especificada.
+      parameters:
+      - description: ID de la Ruta
         in: path
-        name: id
+        name: route_id
         required: true
         type: integer
+      - description: Datos del mensaje general
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure.broadcastMessageRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Detalles de envío para cada ciudadano
           schema:
-            $ref: '#/definitions/entities.IncidenciaResponse'
+            additionalProperties:
+              $ref: '#/definitions/domain.SendResult'
+            type: object
         "400":
-          description: Bad Request
+          description: error
           schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Actualizar incidencia
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Enviar notificación general a ciudadanos de una ruta
       tags:
-      - Incidencia
-  /api/incidencias/conductor/{conductor_id}:
+      - PushNotification
+  /api/notificaciones-push/ciudadanos/enviar:
+    post:
+      consumes:
+      - application/json
+      description: Envía una notificación push a una lista de IDs de ciudadanos específicos.
+      parameters:
+      - description: Datos del mensaje
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure.sendCitizenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Detalles de envío para cada ciudadano
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.SendResult'
+            type: object
+        "400":
+          description: error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Enviar notificación push a ciudadanos específicos
+      tags:
+      - PushNotification
+  /api/notificaciones-push/fallidas:
     get:
+      description: Retorna todas las notificaciones que no pudieron ser entregadas
+        en un rango de tiempo especificado. Soporta formatos RFC3339 (ej. 2026-07-19T18:00:00Z)
+        o solo fecha YYYY-MM-DD (ej. 2026-07-19).
+      parameters:
+      - description: Fecha de inicio (ej. 2026-07-19 o 2026-07-19T00:00:00Z)
+        in: query
+        name: start_time
+        type: string
+      - description: Fecha de fin (ej. 2026-07-19 o 2026-07-19T23:59:59Z)
+        in: query
+        name: end_time
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/entities.IncidenciaListResponse'
+            items:
+              $ref: '#/definitions/application.FailedNotificationRecord'
+            type: array
         "400":
-          description: Bad Request
+          description: error
           schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Incidencias por conductor
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Consultar fallas de entrega globales
       tags:
-      - Incidencia
-  /api/incidencias/fecha:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.IncidenciaListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Incidencias por fecha
-      tags:
-      - Incidencia
-  /api/incidencias/punto/{punto_recoleccion_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.IncidenciaListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Incidencias por punto
-      tags:
-      - Incidencia
+      - PushNotification
   /api/notificaciones/:
     get:
       produces:
@@ -3235,53 +3299,12 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar notificaciones
       tags:
       - Notificacion
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateNotificacionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear notificación
-      tags:
-      - Notificacion
   /api/notificaciones/{id}:
-    delete:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionMessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Eliminar notificación
-      tags:
-      - Notificacion
     get:
       parameters:
       - description: ID
@@ -3300,34 +3323,9 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificación por ID
-      tags:
-      - Notificacion
-    put:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.UpdateNotificacionRequest'
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Actualizar notificación
       tags:
       - Notificacion
   /api/notificaciones/{id}/marcar-leida:
@@ -3349,6 +3347,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Marcar notificación como leída
       tags:
       - Notificacion
@@ -3371,6 +3371,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Reactivar notificación
       tags:
       - Notificacion
@@ -3387,6 +3389,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones activas
       tags:
       - Notificacion
@@ -3403,6 +3407,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones activas por usuario
       tags:
       - Notificacion
@@ -3419,6 +3425,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones por camión
       tags:
       - Notificacion
@@ -3435,6 +3443,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones por camión y tipo
       tags:
       - Notificacion
@@ -3451,6 +3461,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Contar notificaciones activas por usuario
       tags:
       - Notificacion
@@ -3467,6 +3479,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Contar notificaciones por camión
       tags:
       - Notificacion
@@ -3483,6 +3497,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Contar notificaciones por tipo
       tags:
       - Notificacion
@@ -3499,131 +3515,9 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Contar notificaciones por usuario
-      tags:
-      - Notificacion
-  /api/notificaciones/creado-por/{creado_por}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Notificaciones por creador
-      tags:
-      - Notificacion
-  /api/notificaciones/emergencia:
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateNotificacionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear notificación de emergencia
-      tags:
-      - Notificacion
-  /api/notificaciones/enviar-multiples:
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateNotificacionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Notificar a múltiples usuarios
-      tags:
-      - Notificacion
-  /api/notificaciones/enviar-todos:
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateNotificacionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Notificar a todos los usuarios
-      tags:
-      - Notificacion
-  /api/notificaciones/falla:
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateNotificacionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear notificación de falla
-      tags:
-      - Notificacion
-  /api/notificaciones/falla/{falla_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Notificaciones por falla
       tags:
       - Notificacion
   /api/notificaciones/globales:
@@ -3639,6 +3533,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones globales
       tags:
       - Notificacion
@@ -3655,46 +3551,9 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones inactivas
-      tags:
-      - Notificacion
-  /api/notificaciones/mantenimiento:
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateNotificacionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear notificación de mantenimiento
-      tags:
-      - Notificacion
-  /api/notificaciones/mantenimiento/{mantenimiento_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Notificaciones por mantenimiento
       tags:
       - Notificacion
   /api/notificaciones/no-leidas/usuario/{usuario_id}:
@@ -3710,30 +3569,9 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Número de notificaciones no leídas
-      tags:
-      - Notificacion
-  /api/notificaciones/notificar:
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateNotificacionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.NotificacionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Notificar a un usuario
       tags:
       - Notificacion
   /api/notificaciones/rango-fecha:
@@ -3749,6 +3587,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones por rango de fecha
       tags:
       - Notificacion
@@ -3765,6 +3605,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones por tipo
       tags:
       - Notificacion
@@ -3781,6 +3623,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones por usuario
       tags:
       - Notificacion
@@ -3797,6 +3641,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Marcar todas como leídas
       tags:
       - Notificacion
@@ -3813,6 +3659,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Notificaciones por usuario y tipo
       tags:
       - Notificacion
@@ -3829,6 +3677,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar puntos de recolección
       tags:
       - PuntoRecoleccion
@@ -3853,6 +3703,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear punto de recolección
       tags:
       - PuntoRecoleccion
@@ -3883,6 +3735,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar punto de recolección
       tags:
       - PuntoRecoleccion
@@ -3912,6 +3766,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Punto de recolección por ID
       tags:
       - PuntoRecoleccion
@@ -3949,6 +3805,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Actualizar punto de recolección
       tags:
       - PuntoRecoleccion
@@ -3975,6 +3833,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Puntos de recolección por ruta
       tags:
       - PuntoRecoleccion
@@ -3991,6 +3851,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar registros de vaciado
       tags:
       - RegistroVaciado
@@ -4015,6 +3877,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear registro de vaciado
       tags:
       - RegistroVaciado
@@ -4045,6 +3909,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar registro de vaciado
       tags:
       - RegistroVaciado
@@ -4074,6 +3940,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Registro vaciado por ID
       tags:
       - RegistroVaciado
@@ -4100,6 +3968,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Verificar existencia registro vaciado
       tags:
       - RegistroVaciado
@@ -4126,6 +3996,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Registros vaciado por relleno
       tags:
       - RegistroVaciado
@@ -4152,181 +4024,11 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Registros vaciado por ruta-camión
       tags:
       - RegistroVaciado
-  /api/registros-mantenimiento/:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Listar registros de mantenimiento
-      tags:
-      - RegistroMantenimiento
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateRegistroMantenimientoRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear registro de mantenimiento
-      tags:
-      - RegistroMantenimiento
-  /api/registros-mantenimiento/{id}:
-    delete:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoMessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Eliminar registro
-      tags:
-      - RegistroMantenimiento
-    get:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Registro por ID
-      tags:
-      - RegistroMantenimiento
-    put:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.UpdateRegistroMantenimientoRequest'
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Actualizar registro
-      tags:
-      - RegistroMantenimiento
-  /api/registros-mantenimiento/alerta/{alerta_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Registros por alerta
-      tags:
-      - RegistroMantenimiento
-  /api/registros-mantenimiento/camion/{camion_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Registros por camión
-      tags:
-      - RegistroMantenimiento
-  /api/registros-mantenimiento/coordinador/{coordinador_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Registros por coordinador
-      tags:
-      - RegistroMantenimiento
-  /api/registros-mantenimiento/fecha:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Registros por rango de fecha
-      tags:
-      - RegistroMantenimiento
   /api/relleno-sanitario/:
     get:
       produces:
@@ -4340,6 +4042,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar rellenos sanitarios
       tags:
       - RellenoSanitario
@@ -4364,6 +4068,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear relleno sanitario
       tags:
       - RellenoSanitario
@@ -4390,6 +4096,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar relleno sanitario
       tags:
       - RellenoSanitario
@@ -4419,6 +4127,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Relleno sanitario por ID
       tags:
       - RellenoSanitario
@@ -4452,6 +4162,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Actualizar relleno sanitario
       tags:
       - RellenoSanitario
@@ -4478,6 +4190,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Buscar relleno sanitario por nombre
       tags:
       - RellenoSanitario
@@ -4504,493 +4218,11 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Verificar existencia relleno sanitario
       tags:
       - RellenoSanitario
-  /api/reportes-conductor/:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteConductorListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Listar reportes conductor
-      tags:
-      - ReporteConductor
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateReporteConductorRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteConductorResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear reporte conductor
-      tags:
-      - ReporteConductor
-  /api/reportes-conductor/{id}:
-    delete:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteConductorMessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Eliminar reporte conductor
-      tags:
-      - ReporteConductor
-    get:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteConductorResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reporte conductor por ID
-      tags:
-      - ReporteConductor
-    put:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.UpdateReporteConductorRequest'
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteConductorResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Actualizar reporte conductor
-      tags:
-      - ReporteConductor
-  /api/reportes-conductor/camion/{camion_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteConductorResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes conductor por camión
-      tags:
-      - ReporteConductor
-  /api/reportes-conductor/conductor/{conductor_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteConductorResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes conductor por conductor
-      tags:
-      - ReporteConductor
-  /api/reportes-conductor/fecha:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteConductorResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes conductor por fecha
-      tags:
-      - ReporteConductor
-  /api/reportes-conductor/ruta/{ruta_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteConductorResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes conductor por ruta
-      tags:
-      - ReporteConductor
-  /api/reportes-falla-critica/:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteFallaCriticaListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Listar reportes falla crítica
-      tags:
-      - ReporteFallaCritica
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateReporteFallaCriticaRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear reporte falla crítica
-      tags:
-      - ReporteFallaCritica
-  /api/reportes-falla-critica/{id}:
-    delete:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteFallaCriticaMessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Eliminar reporte falla crítica
-      tags:
-      - ReporteFallaCritica
-    get:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reporte falla crítica por ID
-      tags:
-      - ReporteFallaCritica
-    put:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.UpdateReporteFallaCriticaRequest'
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Actualizar reporte falla crítica
-      tags:
-      - ReporteFallaCritica
-  /api/reportes-falla-critica/camion/{camionId}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes falla crítica por camión
-      tags:
-      - ReporteFallaCritica
-  /api/reportes-falla-critica/conductor/{conductorId}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes falla crítica por conductor
-      tags:
-      - ReporteFallaCritica
-  /api/reportes-falla-critica/por-fecha:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.ReporteFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes falla crítica por fecha
-      tags:
-      - ReporteFallaCritica
-  /api/reportes-mantenimiento-generado/:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Listar reportes generados
-      tags:
-      - ReporteMantenimientoGenerado
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateRegistroMantenimientoRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear reporte de mantenimiento generado
-      tags:
-      - ReporteMantenimientoGenerado
-  /api/reportes-mantenimiento-generado/{id}:
-    delete:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoMessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Eliminar reporte generado
-      tags:
-      - ReporteMantenimientoGenerado
-    get:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reporte generado por ID
-      tags:
-      - ReporteMantenimientoGenerado
-    put:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.UpdateRegistroMantenimientoRequest'
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Actualizar reporte generado
-      tags:
-      - ReporteMantenimientoGenerado
-  /api/reportes-mantenimiento-generado/coordinador/{coordinador_id}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes por coordinador
-      tags:
-      - ReporteMantenimientoGenerado
-  /api/reportes-mantenimiento-generado/fecha:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes por rango de fecha
-      tags:
-      - ReporteMantenimientoGenerado
-  /api/reportes-mantenimiento-generado/fecha-generacion:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Reportes por fecha de generación
-      tags:
-      - ReporteMantenimientoGenerado
   /api/roles:
     get:
       produces:
@@ -5007,6 +4239,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar roles
       tags:
       - Rol
@@ -5037,6 +4271,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear rol
       tags:
       - Rol
@@ -5064,6 +4300,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar rol
       tags:
       - Rol
@@ -5092,6 +4330,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Actualizar rol
       tags:
       - Rol
@@ -5108,6 +4348,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar rutas-camión
       tags:
       - RutaCamion
@@ -5132,6 +4374,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear ruta-camión
       tags:
       - RutaCamion
@@ -5158,6 +4402,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar ruta-camión
       tags:
       - RutaCamion
@@ -5187,6 +4433,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Obtener ruta-camión por ID
       tags:
       - RutaCamion
@@ -5220,6 +4468,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Actualizar ruta-camión
       tags:
       - RutaCamion
@@ -5246,6 +4496,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Rutas-camión por ID de camión
       tags:
       - RutaCamion
@@ -5272,6 +4524,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Verificar existencia ruta-camión
       tags:
       - RutaCamion
@@ -5298,6 +4552,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Rutas-camión por ID de ruta
       tags:
       - RutaCamion
@@ -5314,6 +4570,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar rutas
       tags:
       - Ruta
@@ -5326,18 +4584,20 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/entities.CreateEstadoCamionRequest'
+          $ref: '#/definitions/entities.CreateRutaRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/entities.EstadoCamionResponse'
+            $ref: '#/definitions/entities.RutaResponse'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear ruta
       tags:
       - Ruta
@@ -5364,6 +4624,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar ruta
       tags:
       - Ruta
@@ -5393,6 +4655,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Obtener ruta por ID
       tags:
       - Ruta
@@ -5426,6 +4690,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Actualizar ruta
       tags:
       - Ruta
@@ -5442,149 +4708,66 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar rutas activas
       tags:
       - Ruta
-  /api/seguimientos-falla-critica/:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.SeguimientoFallaCriticaListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Listar seguimientos falla crítica
-      tags:
-      - SeguimientoFallaCritica
+  /api/rutas/arrival:
     post:
+      consumes:
+      - application/json
+      description: Actualiza el estado a ARRIVAL y registra el último punto visitado
+        en Redis. Además, realiza geofencing en el radio de la parada y dispara notificaciones
+        push en tiempo real a los ciudadanos cercanos.
       parameters:
-      - description: Body
+      - description: Dirección MAC del dispositivo Android
+        in: header
+        name: X-Device-MAC
+        required: true
+        type: string
+      - description: Número de serie del dispositivo Android
+        in: header
+        name: X-Device-Serial
+        required: true
+        type: string
+      - description: API Key única del dispositivo
+        in: header
+        name: X-Device-API-Key
+        required: true
+        type: string
+      - description: Datos de arribo a parada
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/entities.CreateSeguimientoFallaCriticaRequest'
+          $ref: '#/definitions/controllers.ProcessArrivalRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Status OK
           schema:
-            $ref: '#/definitions/entities.SeguimientoFallaCriticaResponse'
+            additionalProperties:
+              type: string
+            type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear seguimiento falla crítica
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Procesar arribo de camión a parada
       tags:
-      - SeguimientoFallaCritica
-  /api/seguimientos-falla-critica/{id}:
-    delete:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.SeguimientoFallaCriticaMessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Eliminar seguimiento falla crítica
-      tags:
-      - SeguimientoFallaCritica
-    get:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.SeguimientoFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Seguimiento falla crítica por ID
-      tags:
-      - SeguimientoFallaCritica
-    put:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.UpdateSeguimientoFallaCriticaRequest'
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.SeguimientoFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Actualizar seguimiento falla crítica
-      tags:
-      - SeguimientoFallaCritica
-  /api/seguimientos-falla-critica/falla/{fallaId}:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.SeguimientoFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Seguimientos por falla
-      tags:
-      - SeguimientoFallaCritica
-  /api/seguimientos-falla-critica/por-fecha:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.SeguimientoFallaCriticaResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Seguimientos falla crítica por fecha
-      tags:
-      - SeguimientoFallaCritica
+      - Ruta
   /api/tipo-camion/:
     get:
       produces:
@@ -5598,6 +4781,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Listar tipos de camión
       tags:
       - TipoCamion
@@ -5622,6 +4807,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Crear tipo de camión
       tags:
       - TipoCamion
@@ -5644,6 +4831,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Eliminar tipo de camión
       tags:
       - TipoCamion
@@ -5666,117 +4855,15 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/core.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Obtener tipo de camión por nombre
       tags:
       - TipoCamion
-  /api/tipos-mantenimiento/:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Listar tipos de mantenimiento
-      tags:
-      - TipoMantenimiento
-    post:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.CreateRegistroMantenimientoRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Crear tipo de mantenimiento
-      tags:
-      - TipoMantenimiento
-  /api/tipos-mantenimiento/{id}:
-    delete:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoMessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Eliminar tipo de mantenimiento
-      tags:
-      - TipoMantenimiento
-    get:
-      parameters:
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Tipo de mantenimiento por ID
-      tags:
-      - TipoMantenimiento
-    put:
-      parameters:
-      - description: Body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/entities.UpdateRegistroMantenimientoRequest'
-      - description: ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.RegistroMantenimientoResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/core.ErrorResponse'
-      summary: Actualizar tipo de mantenimiento
-      tags:
-      - TipoMantenimiento
-schemes:
-- http
+securityDefinitions:
+  BearerAuth:
+    description: 'Escribe ''Bearer '' seguido de tu token JWT. Ejemplo: "Bearer eyJhbG..."'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

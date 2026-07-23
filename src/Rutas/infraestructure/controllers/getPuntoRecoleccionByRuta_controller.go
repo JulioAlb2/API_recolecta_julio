@@ -23,6 +23,7 @@ func NewGetPuntoRecoleccionByRutaController(uc *application.GetPuntoRecoleccionB
 // @Success      200 {object} entities.PuntoRecoleccionResponse
 // @Failure      400 {object} core.ErrorResponse
 // @Failure      500 {object} core.ErrorResponse
+// @Security     BearerAuth
 // @Router       /api/puntos-recoleccion/ruta/{rutaId} [get]
 func (c *GetPuntoRecoleccionByRutaController) Run(ctx *gin.Context) {
 	rutaStr := ctx.Param("rutaId")
